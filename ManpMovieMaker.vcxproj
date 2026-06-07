@@ -36,13 +36,6 @@
     <ClInclude Include="src\view.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\Jpgview.BAK" />
-    <None Include="src\PNG.BAK" />
-    <None Include="src\Pngview.BAK" />
-    <None Include="src\Pngview.cpp1" />
-    <None Include="src\Savefile.cpp1" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="src\ManpMovieMaker.bmp" />
     <Image Include="src\ManpMovieMaker.ico" />
     <Image Include="src\WinFract.ico" />
