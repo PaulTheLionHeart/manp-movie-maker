@@ -18,29 +18,61 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\crop.cpp" />
+    <ClCompile Include="src\Dib.cpp" />
+    <ClCompile Include="src\Jpgview.c" />
+    <ClCompile Include="src\ManpMovieMaker.cpp" />
+    <ClCompile Include="src\Nextfile.cpp" />
+    <ClCompile Include="src\PNG.cpp" />
+    <ClCompile Include="src\Resize.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\crop.h" />
+    <ClInclude Include="src\Dib.h" />
+    <ClInclude Include="src\DibMacro.h" />
+    <ClInclude Include="src\resource.h" />
+    <ClInclude Include="src\Screen.h" />
+    <ClInclude Include="src\view.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Jpgview.BAK" />
+    <None Include="src\PNG.BAK" />
+    <None Include="src\Pngview.BAK" />
+    <None Include="src\Pngview.cpp1" />
+    <None Include="src\Savefile.cpp1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="src\ManpMovieMaker.bmp" />
+    <Image Include="src\ManpMovieMaker.ico" />
+    <Image Include="src\WinFract.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\ManpMovieMaker.rc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{392237BF-E18F-42FB-8791-79F866AB75B3}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -261,21 +293,6 @@
       <OutputFile>.\Debug/ManpMovieMaker.bsc</OutputFile>
     </Bscmake>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="crop.cpp" />
-    <ClCompile Include="Dib.cpp" />
-    <ClCompile Include="Jpgview.c" />
-    <ClCompile Include="ManpMovieMaker.cpp" />
-    <ClCompile Include="Nextfile.cpp" />
-    <ClCompile Include="PNG.cpp" />
-    <ClCompile Include="Resize.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="ManpMovieMaker.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="resource.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
