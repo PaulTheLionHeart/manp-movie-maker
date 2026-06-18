@@ -51,9 +51,9 @@ CAPTION "About Paul's Constant Generation Program"
 FONT 8, "MS Sans Serif"
 {
     PUSHBUTTON      "OK", IDOK, 75, 78, 80, 14, WS_GROUP | NOT WS_TABSTOP
-    CTEXT           "Version 2.0", IDC_STATIC, 82, 28, 65, 9, SS_CENTER
+    CTEXT           "Version 2.0a", IDC_STATIC, 82, 28, 40, 8, SS_CENTER
     CTEXT           "ManpWIN Animation File Processing", IDC_STATIC, 45, 16, 138, 8, SS_CENTER
-    CTEXT           "Copyright © Paul de Leeuw Computers 07/06/2026", IDC_STATIC, 33, 42, 164, 8, SS_CENTER
+    CTEXT           "Copyright © Paul de Leeuw Computers 18/06/2026", IDC_STATIC, 33, 42, 164, 8, SS_CENTER
     CTEXT           "ABN 72 360 922 562", IDC_STATIC, 81, 58, 68, 8, SS_CENTER
     ICON            IDI_ICON1, IDC_STATIC, 22, 9, 21, 20, SS_ICON
 }
@@ -61,44 +61,73 @@ FONT 8, "MS Sans Serif"
 
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_AUS
-CREATEFFMPEGCOMMANDDLG DIALOG 0, 0, 442, 361
+CREATEFFMPEGCOMMANDDLG DIALOG 0, 0, 442, 310
 STYLE DS_3DLOOK | DS_CENTER | DS_MODALFRAME | DS_SHELLFONT | WS_CAPTION | WS_VISIBLE | WS_POPUP | WS_SYSMENU
 CAPTION "ffmpeg Commands"
 FONT 8, "Ms Shell Dlg"
 {
-    DEFPUSHBUTTON   "OK", IDOK, 372, 328, 33, 14
-    EDITTEXT        IDC_FFMPEGAUDIO, 38, 235, 371, 51, ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE
-    EDITTEXT        IDC_AUDIOPATH, 38, 25, 371, 23, ES_AUTOHSCROLL
-    CTEXT           "Full Path for Audio File", IDC_STATIC, 188, 53, 71, 8, SS_CENTER
-    CTEXT           "ffmpeg command line to add audio file", IDC_STATIC, 161, 292, 120, 8, SS_CENTER
-    EDITTEXT        IDC_OUTPUTFILENAME, 38, 85, 371, 23, ES_AUTOHSCROLL
-    CTEXT           "Outputfilename (mp4)", IDC_STATIC, 189, 113, 68, 8, SS_CENTER
-    EDITTEXT        IDC_FFMPEG, 38, 144, 371, 51, ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE
-    CTEXT           "ffmpeg command line to create mp4 file from frames", IDC_STATIC, 140, 200, 162, 8, SS_CENTER
-    PUSHBUTTON      "Create Commands", IDC_CREATEFFMPEG, 37, 328, 62, 14
-    PUSHBUTTON      "Copy Frame Command to Clipboard", IDCOPY1, 111, 328, 115, 14
-    PUSHBUTTON      "Copy AudioCommand to Clipboard", IDCOPY2, 242, 328, 112, 14
+    DEFPUSHBUTTON   "OK", IDOK, 93, 277, 33, 14
+    EDITTEXT        IDC_AUDIOPATH, 39, 21, 333, 23, ES_AUTOHSCROLL
+    CTEXT           "Full Path for Audio File", IDC_STATIC, 188, 49, 71, 8, SS_CENTER
+    EDITTEXT        IDC_OUTPUTFILENAME, 39, 122, 371, 23, ES_AUTOHSCROLL
+    CTEXT           "Output animation filename (mp4)", IDC_STATIC, 42, 150, 102, 8, SS_CENTER
+    EDITTEXT        IDC_FFMPEG, 39, 191, 371, 51, WS_VSCROLL | ES_MULTILINE | ES_WANTRETURN
+    PUSHBUTTON      "Cancel", IDCANCEL, 322, 277, 27, 14
+    PUSHBUTTON      "Browse...", IDC_BROWSE_AUDIO, 376, 27, 34, 14
+    EDITTEXT        IDC_FADEIN, 39, 63, 30, 17, ES_AUTOHSCROLL
+    LTEXT           "Fade in (seconds)", IDC_STATIC, 78, 67, 57, 8, SS_LEFT
+    LTEXT           "Fade out (seconds)", IDC_STATIC, 218, 67, 62, 8, SS_LEFT
+    EDITTEXT        IDC_FADEOUT, 178, 63, 30, 17, ES_AUTOHSCROLL
+    AUTOCHECKBOX    "Loop audio until movie ends", IDC_LOOPAUDIO, 312, 67, 104, 8
+    GROUPBOX        "Audio", IDC_STATIC, 18, 10, 406, 92
+    GROUPBOX        "Output", IDC_STATIC, 18, 104, 406, 72
+    LTEXT           "Estimated duration (seconds)", IDC_STATIC, 317, 156, 92, 8, SS_LEFT
+    EDITTEXT        IDC_ESTIMATED_DURATION, 278, 152, 30, 17, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "Copy", IDC_COPY_FFMPEG, 211, 244, 21, 14
+    GROUPBOX        "FFmpeg Command", IDC_STATIC, 18, 179, 406, 83
+    GROUPBOX        "", IDC_STATIC, 18, 267, 406, 31
 }
 
 
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_AUS
-SPECIFYIMAGEFILEDLG DIALOG 0, 0, 436, 191
+SPECIFYIMAGEFILEDLG DIALOG 0, 0, 646, 250
 STYLE DS_3DLOOK | DS_CENTER | DS_MODALFRAME | DS_SHELLFONT | WS_CAPTION | WS_VISIBLE | WS_POPUP | WS_SYSMENU
 CAPTION "Specify Input Files"
 FONT 8, "Ms Shell Dlg"
 {
-    EDITTEXT        IDC_FIRSTFILE, 33, 11, 371, 23, ES_AUTOHSCROLL
-    EDITTEXT        IDC_NUMBER_INSERTED_FRAMES, 33, 118, 30, 17, ES_AUTOHSCROLL
-    LTEXT           "Full path of first file in the list - List must have at least 2 images", IDC_STATIC, 121, 39, 194, 8, SS_LEFT
-    LTEXT           "Number of frames for each image file\nMaximum 10", IDC_STATIC, 72, 118, 127, 20, SS_LEFT
-    DEFPUSHBUTTON   "OK", IDOK, 119, 164, 44, 14
-    DEFPUSHBUTTON   "Cancel", IDCANCEL, 273, 164, 44, 14
-    EDITTEXT        IDC_OUTPUTPATH, 33, 62, 371, 23, ES_AUTOHSCROLL
-    CTEXT           "Output Directory. If blank, use directory of source files", IDC_STATIC, 133, 90, 169, 8, SS_CENTER
-    AUTOCHECKBOX    "Is this a zoom animation? If not, simply repeat frames.", IDC_USESCALING, 290, 122, 119, 26, BS_MULTILINE
-    EDITTEXT        IDC_ADDITIONALFRAMES, 33, 140, 30, 17, ES_AUTOHSCROLL
-    CTEXT           "How many repeats of last frame?", IDC_STATIC, 72, 144, 104, 8, SS_CENTER
+    EDITTEXT        IDC_FIRSTFILE, 15, 21, 371, 23, ES_AUTOHSCROLL
+    EDITTEXT        IDC_NUMBER_INSERTED_FRAMES, 471, 34, 30, 13, ES_AUTOHSCROLL
+    LTEXT           "First PNG file in sequence", IDC_STATIC, 158, 47, 82, 8, SS_LEFT
+    LTEXT           "Frames per source PNG\nMaximum 10", IDC_STATIC, 518, 31, 76, 16, SS_LEFT
+    DEFPUSHBUTTON   "Create Frames", IDOK, 180, 211, 55, 14
+    DEFPUSHBUTTON   "Cancel", IDCANCEL, 410, 211, 55, 14
+    EDITTEXT        IDC_OUTPUTPATH, 16, 72, 371, 23, ES_AUTOHSCROLL
+    CTEXT           "Output JPG directory (blank = source directory)", IDC_STATIC, 120, 99, 148, 8, SS_CENTER
+    EDITTEXT        IDC_STARTSECONDS, 471, 71, 30, 13, ES_AUTOHSCROLL
+    LTEXT           "Hold first frame (seconds)", IDC_STATIC, 518, 73, 80, 8, SS_LEFT
+    EDITTEXT        IDC_ENDSECONDS, 472, 89, 30, 13, ES_AUTOHSCROLL
+    LTEXT           "Hold last frame (seconds)", IDC_STATIC, 518, 92, 80, 8, SS_LEFT
+    EDITTEXT        IDC_FRAMES_PER_SEC, 471, 52, 30, 13, ES_AUTOHSCROLL
+    LTEXT           "Frames per second (fps)", IDC_STATIC, 518, 54, 76, 8, SS_LEFT
+    PUSHBUTTON      "Browse...", IDC_BROWSE_FIRSTFILE, 392, 25, 34, 14
+    PUSHBUTTON      "Browse...", IDC_BROWSE_OUTPUTPATH, 392, 77, 34, 14
+    EDITTEXT        IDC_SOURCE_FILE_COUNT, 78, 125, 30, 17, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Source PNG files", IDC_STATIC, 125, 129, 55, 8, SS_LEFT
+    EDITTEXT        IDC_TOTAL_OUTPUT_FRAMES, 78, 149, 30, 17, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "JPG frames created", IDC_STATIC, 125, 154, 63, 8, SS_LEFT
+    EDITTEXT        IDC_ESTIMATED_DURATION, 78, 173, 30, 17, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Estimated duration (seconds)", IDC_STATIC, 125, 177, 92, 8, SS_LEFT
+    GROUPBOX        "Input and temporary output files", IDC_STATIC, 8, 10, 437, 104
+    GROUPBOX        "Estimated Output", IDC_STATIC, 8, 116, 217, 82
+    GROUPBOX        "Frame Parameters", IDC_STATIC, 452, 14, 186, 100
+    GROUPBOX        "", IDC_STATIC, 8, 201, 630, 33
+    GROUPBOX        "Optional Opening Text", IDC_STATIC, 235, 116, 403, 82
+    EDITTEXT        IDC_OPENING_TEXT, 275, 127, 264, 21, ES_AUTOVSCROLL | ES_MULTILINE | ES_WANTRETURN
+    EDITTEXT        IDC_OPENING_SUBTEXT, 275, 156, 264, 14, ES_AUTOVSCROLL | ES_MULTILINE | ES_WANTRETURN
+    AUTOCHECKBOX    "Display zoom level", IDC_DISPLAY_ZOOM_LEVEL, 248, 180, 74, 8
+    LTEXT           "Title", IDC_STATIC, 571, 136, 14, 8, SS_LEFT
+    LTEXT           "Subtitle", IDC_STATIC, 571, 160, 24, 8, SS_LEFT
 }
 
 

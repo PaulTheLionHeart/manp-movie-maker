@@ -2,9 +2,10 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#ifndef PGV4
-#define UNICODE
-#define _UNICODE
+#ifdef UNICODE
+#pragma message("Dib.cpp compiled as UNICODE")
+#else
+#pragma message("Dib.cpp compiled as ANSI")
 #endif
 
 #define WIN32_LEAN_AND_MEAN
@@ -509,28 +510,57 @@ void	CDib::Text2Dib(HDC hDc, RECT *rect, LOGFONT *lf, TCHAR *text)
     {
     Text2Dib(hDc, rect, GetTextColor(hDc), GetBkColor(hDc), lf, GetBkMode(hDc), text);
     }
-void	CDib::Text2Dib(HDC hDc, RECT *rect, COLORREF FontColour, COLORREF BkgColour, LOGFONT *lf, int TranparentText, TCHAR *text)
-    {
-    HDC	hdc;
-    HBITMAP	hBitmap;
 
-//    HDC	hDc = GetDC(hwnd); 
+void CDib::Text2Dib(HDC hDc, RECT *rect, COLORREF FontColour, COLORREF BkgColour, LOGFONT *lf, int TranparentText, TCHAR *text)
+    {
+    HDC	    hdc;
+    HBITMAP hBitmap = NULL;
+    HBITMAP hOldBitmap = NULL;
+    HFONT   hFont = NULL;
+    HFONT   hOldFont = NULL;
+
     if ((hdc = CreateCompatibleDC(hDc)) == NULL)
 	return;
+
     SetTextColor(hdc, FontColour);
     SetBkColor(hdc, BkgColour);
     SetBkMode(hdc, TranparentText);
+
     if (lf)
-	SelectObject (hdc, CreateFontIndirect (lf)) ;
-    hBitmap = CreateCompatibleBitmap (hDc, DibWidth, DibHeight);
-    SelectObject (hdc, hBitmap);
+	{
+	hFont = CreateFontIndirect(lf);
+	if (hFont)
+	    hOldFont = (HFONT)SelectObject(hdc, hFont);
+	}
+
+    hBitmap = CreateCompatibleBitmap(hDc, DibWidth, DibHeight);
+    if (hBitmap == NULL)
+	goto cleanup;
+
+    hOldBitmap = (HBITMAP)SelectObject(hdc, hBitmap);
+
     if (SetDIBits(hDc, hBitmap, 0, DibHeight, DibPixels, (LPBITMAPINFO)pDibInf, DIB_RGB_COLORS) == 0)
-	return;
-    DrawText(hdc, text, -1, rect, DT_CENTER);
+	goto cleanup;
+
+    DrawText(hdc, text, -1, rect, DT_LEFT | DT_WORDBREAK);
+
     if (GetDIBits(hDc, hBitmap, 0, DibHeight, DibPixels, (LPBITMAPINFO)pDibInf, DIB_RGB_COLORS) == 0)
-	return;
-    DeleteObject(hBitmap);
-//    ReleaseDC(hwnd, hDc);
+	goto cleanup;
+
+cleanup:
+    if (hOldBitmap)
+	SelectObject(hdc, hOldBitmap);
+
+    if (hOldFont)
+	SelectObject(hdc, hOldFont);
+
+    if (hFont)
+	DeleteObject(hFont);
+
+    if (hBitmap)
+	DeleteObject(hBitmap);
+
+    DeleteDC(hdc);
     }
 
 //	Initialise DIB Palette (This is not a member of CDib)

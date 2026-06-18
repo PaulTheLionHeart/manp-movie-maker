@@ -3,6 +3,12 @@
 	ManpWIN Movie File Sequence Generation Program Written by Paul de Leeuw
   -----------------------------------------*/
 
+#ifdef UNICODE
+#pragma message("ManpMovieMaker.cpp compiled as UNICODE")
+#else
+#pragma message("ManpMovieMaker.cpp compiled as ANSI")
+#endif
+
 #include <windows.h>
 #include <Winuser.h>
 #include <commdlg.h>
@@ -13,6 +19,8 @@
 #include <math.h>
 #include <setjmp.h>
 #include <string.h>
+#include <stdarg.h>
+#include <shlobj.h>
 #include "resource.h"
 #include "Dib.h"
 #include "View.h"
@@ -21,21 +29,16 @@
 
 #define	 MAX_INSERTED_FRAMES	10
 
-extern	BOOL	ScrollImage(HWND hwnd, int nScrollBar, WORD wScrollCode);
 extern	void	InitializeScrollBars(HWND, RECT *, RECT *);
 extern	int	decode_png_header(HWND hwnd, char *infile, char *szAppName);
-extern	int	png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool UseComment);
+extern	int	png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool UseComment, CDib *TargetDib);
 extern "C" void	HandleJPEGError(void);
 extern "C" int	SaveJPEG(HWND, FILE *, BYTE *, BOOL, int, WORD *, WORD *, WORD *);
 extern "C"	jmp_buf	mark;				// Address for long jump to jump to when an error occurs
 
-//extern	void InitText(void);
-//	int  SaveData(HWND hwnd, char *szFileName, char *szAppName, char *lpText, char *Time, char *Name);
-
 extern	void	InitFileList(void);
 extern	int	LoadFileList(HWND hwnd, char *Filename);
 extern	void	SortFileList(void);
-//extern	void	GetPNGComment(HWND hwnd, char *infile, double *Zoom);
 extern	int	ResizeDib(CDib *LocalDib, ResizeStruct RESIZE, BOOL InterpFlag);
 extern	int	Crop(HWND hwnd, RECT & SelectRect);
 extern	void	WINAPI	NormalizeRect(RECT &);
@@ -56,10 +59,16 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames);
 enum	JustifyKind	{LEFT, CENTRE, RIGHT, JUSTIFY};
 static	JustifyKind	Justification;
 
-int	NumInsertedFrames = 0;
-int	NumEndFrames = 50;		// number of times to repeat last frame. Assume 2 seconds at 25 frames per second
-int	filecount, FrameCount;
-bool	UseScaling = true;
+int	NumInsertedFrames = 1;
+int	FramesPerSecond = 25;
+int	StartSeconds = 2;
+int	EndSeconds = 2;
+int	TotalFrames = 0;
+int	filecount;
+
+double	StartZoom;						// this is used to calculate the current zoom level for display in ffmpeg 
+double  ratio;							// ration between subsequent PNG files
+double  FrameRatio;						// ration between subsequent frames
 
 //#define min(a,b) (((a) < (b)) ? (a) : (b))
 //#define max(a,b) (((a) > (b)) ? (a) : (b))
@@ -79,16 +88,24 @@ StateType	State = NORMAL;
 
 // Styles of app. window 
 DWORD		dwStyle = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_THICKFRAME;
-//DWORD		dwStyle = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
+
 int		AppIndex;
-char		Filename[MAX_PATH];
-char		OutputPath[MAX_PATH] = "";
-char		OutputFilename[MAX_PATH] = "";
-char		InputPath[MAX_PATH] = "";
-char		AudioPath[MAX_PATH] = "";
-char		ffmpegCommand[1200];
-char		ffmpegAudioCommand[1200];
-static	short	nNumLines;
+char		Filename[MAX_PATH]{};
+char		OutputPath[MAX_PATH]{};
+char		OutputFilename[MAX_PATH]{};
+char		MovieFilename[MAX_PATH]{};
+char		FullMovieFilename[MAX_PATH]{};
+char		InputPath[MAX_PATH]{};
+char		ffmpegCommand[1600]{};
+char		AudioPath[MAX_PATH]{};
+TCHAR 		MovieTitle[512]{};
+TCHAR 		MovieSubTitle[512]{};
+
+BOOL		LoopAudio = FALSE;
+BOOL		UserDisplayZoom = FALSE;
+
+int		FadeInSeconds = 0;
+int		FadeOutSeconds = 5;
 
 int		xdots, ydots, height, width, bits_per_pixel;
 int		caption, scroll_width, display_width, display_height, HorOffset, VertOffset, screenx, screeny;
@@ -189,13 +206,9 @@ long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
     static HBRUSH	hBrush;
     HDC			hdc;
     DWORD		ErrorCode;
-//    int			result;
-     static HWND    hScroll ;
-     PAINTSTRUCT     ps ;
-//     char	    *p;
-
+    static HWND		hScroll ;
+    PAINTSTRUCT		ps ;
     char		s[180];
-//    static char    szSaveFileName  [480];
 
     switch (message)
 	{
@@ -211,15 +224,12 @@ long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
 		sprintf(s, "Error type = %ld", ErrorCode);
 		MessageBox(hwnd, s, szAppName, MB_ICONEXCLAMATION | MB_OK);
 		}
-	    //		sprintf(s, "Image size = %d, %d", bm.bmWidth, bm.bmHeight);
-	    //		MessageBox (hwnd, s, szAppName, MB_ICONEXCLAMATION | MB_OK);
 	    MoveWindow(hwnd, 160, 120, bm.bmWidth, bm.bmHeight, TRUE);
 	    ShowWindow(hwnd, SW_SHOWNORMAL);
 	    EndPaint(hwnd, &ps);
 	    return 0;
 
 	case WM_INITMENUPOPUP:
-
 	    switch (lParam)
 		{
 		case 0:	   // File menu
@@ -235,7 +245,6 @@ long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
 	    return 0;
 
 	  case WM_COMMAND:
-
 	       switch (wParam)
 		    {
 		    case IDM_EXIT:
@@ -261,25 +270,10 @@ long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
 	       break;
 
 	  case WM_SIZE:
-
 		InvalidateRect(hwnd, NULL, FALSE);      
 		return 0;
 
 	  case WM_PAINT:
-/*
-		BeginPaint(hwnd, &ps);
-		if (BitBlt(ps.hdc, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCCOPY) == 0)
-		    {
-		    ErrorCode = GetLastError();
-		    sprintf(s, "Error type = %ld", ErrorCode);
-		    MessageBox (hwnd, s, szAppName, MB_ICONEXCLAMATION | MB_OK);
-		    }
-//		sprintf(s, "Image size = %d, %d", bm.bmWidth, bm.bmHeight);
-//		MessageBox (hwnd, s, szAppName, MB_ICONEXCLAMATION | MB_OK);
-		MoveWindow (hwnd, 160, 120, bm.bmWidth, bm.bmHeight, TRUE);
-		ShowWindow (hwnd, SW_SHOWNORMAL);
-		EndPaint(hwnd, &ps);
-*/
 		ChangeView(hwnd, -GetScrollPos(hwnd, SB_HORZ), -GetScrollPos(hwnd, SB_VERT), width, height, 0, 0, width, height, TRUE);
 		return 0;
 
@@ -297,12 +291,6 @@ long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
                 case 'S': 
 		     SendMessage (hwnd, WM_COMMAND, IDM_SETUPFILEINFO, 0L);
                      break;
-/*
-                case 'o':						// open file  
-                case 'O': 
-		     SendMessage (hwnd, WM_COMMAND, IDM_OPEN, 0L);
-                     break;
-*/
                 case VK_RETURN:						// Let's get out of here
                 case VK_ESCAPE: 
 		    State = NORMAL;
@@ -319,15 +307,80 @@ long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
      }
 
 /**************************************************************************
+    Create output movie filename from first PNG filename
+
+    InputFile       Full path of first PNG file
+    OutputFile      Generated movie filename only
+**************************************************************************/
+
+void CreateOutputFilename(char *InputFile, char *MovieFilename)
+    {
+    char drive[_MAX_DRIVE];
+    char dir[_MAX_DIR];
+    char name[_MAX_FNAME];
+    char ext[_MAX_EXT];
+    char *ptr;
+
+    if (MovieFilename)
+	MovieFilename[0] = '\0';
+
+    if (InputFile == NULL)
+	return;
+
+    _splitpath(InputFile, drive, dir, name, ext);
+
+    ptr = name + strlen(name);
+
+    while (ptr > name && isdigit((unsigned char)*(ptr - 1)))
+	ptr--;
+
+    *ptr = '\0';
+
+    if (name[0] == '\0')
+	strcpy(name, "Movie");
+
+    sprintf(MovieFilename, "%s.mp4", name);
+    }
+
+/**************************************************************************
+	Update estimates
+**************************************************************************/
+
+void  UpdateMovieMakerEstimates(HWND hDlg)
+    {
+    BOOL bTrans;
+
+    int StartSeconds = GetDlgItemInt(hDlg, IDC_STARTSECONDS, &bTrans, TRUE);
+    int EndSeconds = GetDlgItemInt(hDlg, IDC_ENDSECONDS, &bTrans, TRUE);
+    int FPS = GetDlgItemInt(hDlg, IDC_FRAMES_PER_SEC, &bTrans, TRUE);
+    int InsertedFrames = GetDlgItemInt(hDlg, IDC_NUMBER_INSERTED_FRAMES, &bTrans, TRUE);
+
+    int StartFrames = StartSeconds * FPS;
+    int EndFrames   = EndSeconds * FPS;
+
+    int FramesPerImage = (InsertedFrames > 0) ? InsertedFrames : 1;
+    int TotalFrames = StartFrames + (filecount * FramesPerImage) + EndFrames;
+    double Duration = (FPS > 0) ? (double)TotalFrames / FPS : 0.0;
+
+    SetDlgItemInt(hDlg, IDC_SOURCE_FILE_COUNT, filecount, FALSE);
+    SetDlgItemInt(hDlg, IDC_TOTAL_OUTPUT_FRAMES, TotalFrames, FALSE);
+
+    char s[64];
+    sprintf(s, "%.1f", Duration);
+    SetDlgItemText(hDlg, IDC_ESTIMATED_DURATION, s);
+    }
+
+/**************************************************************************
 	Image files
 **************************************************************************/
 
 BOOL FAR PASCAL SpecifyImageFileDlg (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
      {
-     BOOL		bTrans ;
+     BOOL		bTrans;
      char		*ptr;
      HWND		hCtrl;
      char		drive0[_MAX_DRIVE], dir0[_MAX_DIR], name0[_MAX_FNAME], ext0[_MAX_EXT];
+     OPENFILENAME	ofn{};
 
      switch (message)
 	  {
@@ -336,25 +389,103 @@ BOOL FAR PASCAL SpecifyImageFileDlg (HWND hDlg, UINT message, WPARAM wParam, LPA
 		SetDlgItemText(hDlg, IDC_OUTPUTPATH, OutputPath);
 		SetDlgItemText(hDlg, IDC_OUTPUTFILENAME, OutputFilename);
 		SetDlgItemInt(hDlg, IDC_NUMBER_INSERTED_FRAMES, NumInsertedFrames, TRUE);
-		SetDlgItemInt(hDlg, IDC_ADDITIONALFRAMES, NumEndFrames, TRUE);
-		hCtrl = GetDlgItem(hDlg, IDC_USESCALING);
-		SendMessage(hCtrl, BM_SETCHECK, UseScaling, 0L);
+		SetDlgItemInt(hDlg, IDC_STARTSECONDS, StartSeconds, TRUE);
+		SetDlgItemInt(hDlg, IDC_ENDSECONDS, EndSeconds, TRUE);
+		SetDlgItemInt(hDlg, IDC_FRAMES_PER_SEC, FramesPerSecond, TRUE);
+		SetDlgItemText(hDlg, IDC_SOURCE_FILE_COUNT, "?");
+		SetDlgItemText(hDlg, IDC_TOTAL_OUTPUT_FRAMES, "?");
+		SetDlgItemText(hDlg, IDC_ESTIMATED_DURATION, "?");
 	        return FALSE ;
 
 	  case WM_COMMAND:
 	        switch ((int) LOWORD(wParam))
-//	        switch (wParam)
 		    {
+		    case IDC_BROWSE_FIRSTFILE:
+			ZeroMemory(&ofn, sizeof(ofn));
+
+			ofn.lStructSize = sizeof(ofn);
+			ofn.hwndOwner = hDlg;
+			ofn.lpstrFile = Filename;
+			ofn.nMaxFile = MAX_PATH;
+			ofn.lpstrFilter = "PNG Files (*.png)\0*.png\0" "All Files (*.*)\0*.*\0";
+			ofn.nFilterIndex = 1;
+
+			ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+			if (GetOpenFileName(&ofn))
+			    {
+			    char PathName[MAX_PATH];
+			    char drive[_MAX_DRIVE];
+			    char dir[_MAX_DIR];
+			    char name[_MAX_FNAME];
+			    char ext[_MAX_EXT];
+			    SetDlgItemText(hDlg, IDC_FIRSTFILE, Filename);
+			    if (GetDlgItemText(hDlg, IDC_OUTPUTPATH, PathName, MAX_PATH) == 0)
+				{
+				_splitpath(Filename, drive, dir, name, ext);
+				_makepath(PathName, drive, dir, "", "");
+				SetDlgItemText(hDlg, IDC_OUTPUTPATH, PathName);
+				}
+			    CreateOutputFilename(Filename, MovieFilename);
+			    LoadFileList(hDlg, Filename);
+			    SortFileList();
+			    UpdateMovieMakerEstimates(hDlg);
+			    }
+			break;
+
+		    case IDC_NUMBER_INSERTED_FRAMES:
+		    case IDC_FRAMES_PER_SEC:
+		    case IDC_STARTSECONDS:
+		    case IDC_ENDSECONDS:
+			if (HIWORD(wParam) == EN_CHANGE)
+			    UpdateMovieMakerEstimates(hDlg);
+			break;
+
+		    case IDC_DISPLAY_ZOOM_LEVEL:
+			hCtrl = GetDlgItem(hDlg, IDC_DISPLAY_ZOOM_LEVEL);
+			UserDisplayZoom = (BOOL)SendMessage(hCtrl, BM_GETCHECK, 0, 0L);
+			break;
+
+		    case IDC_BROWSE_OUTPUTPATH:
+			{
+			BROWSEINFO bi{};
+			LPITEMIDLIST pidl;
+			char PathName[MAX_PATH]{};
+
+			bi.hwndOwner = hDlg;
+			bi.lpszTitle = "Select output folder for JPG frames";
+			pidl = SHBrowseForFolder(&bi);
+
+			if (pidl != NULL)
+			    {
+			    if (SHGetPathFromIDList(pidl, PathName))
+				SetDlgItemText(hDlg, IDC_OUTPUTPATH, PathName);
+			    CoTaskMemFree(pidl);
+			    }
+			break;
+			}
+
 		    case IDOK:
-			NumEndFrames = GetDlgItemInt(hDlg, IDC_ADDITIONALFRAMES, &bTrans, TRUE);
+			StartSeconds = GetDlgItemInt(hDlg, IDC_STARTSECONDS, &bTrans, TRUE);
+			if (!bTrans || StartSeconds < 0)
+			    StartSeconds = 0;
+			EndSeconds = GetDlgItemInt(hDlg, IDC_ENDSECONDS, &bTrans, TRUE);
+			if (!bTrans || EndSeconds < 0)
+			    EndSeconds = 0;
+			FramesPerSecond = GetDlgItemInt(hDlg, IDC_FRAMES_PER_SEC, &bTrans, TRUE);
+			if (!bTrans || FramesPerSecond < 10)
+			    FramesPerSecond = 10;
+			if (FramesPerSecond > 120)
+			    FramesPerSecond = 120;
 			NumInsertedFrames = GetDlgItemInt(hDlg, IDC_NUMBER_INSERTED_FRAMES, &bTrans, TRUE);
-			if (NumInsertedFrames < 0)
-			    NumInsertedFrames = 0;
+			if (!bTrans || NumInsertedFrames < 1)
+			    NumInsertedFrames = 1;
 			if (NumInsertedFrames > MAX_INSERTED_FRAMES)
 			    NumInsertedFrames = MAX_INSERTED_FRAMES;
 			GetDlgItemText(hDlg, IDC_FIRSTFILE, Filename, MAX_PATH);
 			GetDlgItemText(hDlg, IDC_OUTPUTPATH, OutputPath, MAX_PATH);
 			GetDlgItemText(hDlg, IDC_OUTPUTFILENAME, OutputFilename, MAX_PATH);
+			GetDlgItemText(hDlg, IDC_OPENING_TEXT, MovieTitle, 1024);
+			GetDlgItemText(hDlg, IDC_OPENING_SUBTEXT, MovieSubTitle, 1024);
 
 			_splitpath(Filename, drive0, dir0, name0, ext0);
 			_makepath(InputPath, drive0, dir0, "", "");
@@ -363,13 +494,13 @@ BOOL FAR PASCAL SpecifyImageFileDlg (HWND hDlg, UINT message, WPARAM wParam, LPA
 			    strcpy(OutputPath, InputPath);
 
 			ptr = OutputPath + strlen(OutputPath) - 1;		// remove final backslash if it exists so we can add it later
-			if (*ptr = '\\')
+			if (*ptr == '\\')
 			    *ptr = '\0';
 			ptr = InputPath + strlen(InputPath) - 1;		// remove final backslash if it exists so we can add it later
-			if (*ptr = '\\')
+			if (*ptr == '\\')
 			    *ptr = '\0';
-			hCtrl = GetDlgItem(hDlg, IDC_USESCALING);
-			UseScaling = (BOOL)SendMessage(hCtrl, BM_GETCHECK, 0, 0L);
+//			hCtrl = GetDlgItem(hDlg, IDC_USESCALING);
+//			UseScaling = (BOOL)SendMessage(hCtrl, BM_GETCHECK, 0, 0L);
 			EndDialog (hDlg, TRUE);
 			return TRUE;
 
@@ -411,46 +542,167 @@ int	CopyTextToClipboard(HWND hwnd, char *text)
     }
 
 /**************************************************************************
+	Update the ffmpeg Command when a user updates one of the parameters
+**************************************************************************/
+
+void UpdateFFmpegCommand(HWND hDlg)
+    {
+    char    temp[1024];
+    char    drive0[_MAX_DRIVE];
+    char    dir0[_MAX_DIR];
+    char    name0[_MAX_FNAME];
+    char    ext0[_MAX_EXT];
+
+    double  MovieDuration;
+    double  FadeOutStart;
+
+    ffmpegCommand[0] = '\0';
+
+    GetDlgItemText(hDlg, IDC_AUDIOPATH, AudioPath, MAX_PATH);
+    GetDlgItemText(hDlg, IDC_OUTPUTFILENAME, MovieFilename, MAX_PATH);
+
+    sprintf(FullMovieFilename, "%s\\%s", OutputPath, MovieFilename);
+
+    _splitpath(FullMovieFilename, drive0, dir0, name0, ext0);
+    _makepath(FullMovieFilename, drive0, dir0, name0, "mp4");
+
+    MovieDuration = (FramesPerSecond > 0) ? (double)TotalFrames / FramesPerSecond : 0.0;
+
+    FadeOutStart = MovieDuration - FadeOutSeconds;
+
+    if (FadeOutStart < 0.0)
+	FadeOutStart = 0.0;
+
+    // FFmpeg executable
+    strcat(ffmpegCommand, "ffmpeg ");
+
+    // Video input
+    sprintf(temp, "-framerate %d " "-i \"%s\\Frame%%05d.jpg\" ", FramesPerSecond, OutputPath);
+    strcat(ffmpegCommand, temp);
+
+    // Audio input
+    if (*AudioPath)
+	{
+	if (LoopAudio)
+	    strcat(ffmpegCommand, "-stream_loop -1 ");
+	sprintf(temp, "-i \"%s\" ",  AudioPath);
+	strcat(ffmpegCommand, temp);
+	}
+
+    // Video codec
+    strcat(ffmpegCommand, "-c:v libx264 " "-crf 18 " "-pix_fmt yuv420p ");
+
+    // Audio codec
+    if (*AudioPath)
+	strcat(ffmpegCommand, "-c:a aac ");
+
+    // Audio fade
+    if (*AudioPath && (FadeInSeconds > 0 || FadeOutSeconds > 0))
+	{
+	sprintf(temp, "-af \"afade=t=in:st=0:d=%d," "afade=t=out:st=%.1f:d=%d\" ", FadeInSeconds, FadeOutStart, FadeOutSeconds);
+	strcat(ffmpegCommand, temp);
+	}
+
+    // Movie duration
+    sprintf(temp, "-t %.1f ", MovieDuration);
+    strcat(ffmpegCommand, temp);
+
+    // Output filename
+    sprintf(temp, "\"%s\"", FullMovieFilename);
+    strcat(ffmpegCommand, temp);
+    SetDlgItemText(hDlg, IDC_FFMPEG, ffmpegCommand);
+    }
+
+/**************************************************************************
 	ffmpeg Commands Dialog Box
 **************************************************************************/
 
+// Zoom values are derived from the PNG corner data
+// (mandel_width) exactly as MovieMaker has always done.
+// This is intentionally approximate and sufficient for
+// display overlays.
+
 BOOL FAR PASCAL CreateFFMPEGCommandDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     {
-//    BOOL		bTrans;
-//    char		*ptr;
-    char		drive0[_MAX_DRIVE], dir0[_MAX_DIR], name0[_MAX_FNAME], ext0[_MAX_EXT];
+    OPENFILENAME	ofn{};
+    HWND		hCtrl;
+    BOOL		bTrans;
 
     switch (message)
 	{
 	case WM_INITDIALOG:
-//	    SetDlgItemText(hDlg, IDC_FIRSTFILE, Filename);
-//	    SetDlgItemText(hDlg, IDC_OUTPUTPATH, OutputPath);
+	    {
+	    double Duration = (FramesPerSecond > 0) ? (double)TotalFrames / FramesPerSecond : 0.0;
+	    char s[32];
+	    sprintf(s, "%.1f", Duration);
+	    SetDlgItemText(hDlg, IDC_ESTIMATED_DURATION, s);
 	    SetDlgItemText(hDlg, IDC_AUDIOPATH, AudioPath);
-	    SetDlgItemText(hDlg, IDC_OUTPUTFILENAME, OutputFilename);
+	    SetDlgItemText(hDlg, IDC_OUTPUTFILENAME, MovieFilename);
 	    SetDlgItemText(hDlg, IDC_FFMPEG, ffmpegCommand);
-	    SetDlgItemText(hDlg, IDC_FFMPEGAUDIO, ffmpegAudioCommand);
+	    FadeInSeconds = 0;
+	    FadeOutSeconds = 2;
+	    LoopAudio = FALSE;
+	    UserDisplayZoom = FALSE;
+
+	    SetDlgItemInt(hDlg, IDC_FADEIN, FadeInSeconds, TRUE);
+	    SetDlgItemInt(hDlg, IDC_FADEOUT, FadeOutSeconds, TRUE);
+
+	    hCtrl = GetDlgItem(hDlg, IDC_LOOPAUDIO);
+	    SendMessage(hCtrl, BM_SETCHECK, LoopAudio, 0L);
+
+	    hCtrl = GetDlgItem(hDlg, IDC_DISPLAY_ZOOM_LEVEL);
+	    SendMessage(hCtrl, BM_SETCHECK, UserDisplayZoom, 0L);
+
+	    UpdateFFmpegCommand(hDlg);
 	    return FALSE;
+	    }
 
 	case WM_COMMAND:
 	    switch ((int)LOWORD(wParam))
 		{
-		case IDC_CREATEFFMPEG:
-		    GetDlgItemText(hDlg, IDC_AUDIOPATH, AudioPath, MAX_PATH);
-		    GetDlgItemText(hDlg, IDC_OUTPUTFILENAME, OutputFilename, MAX_PATH);
-		    _splitpath(OutputFilename, drive0, dir0, name0, ext0);		// just in case we forgot to add the output file extension
-		    _makepath(OutputFilename, drive0, dir0, name0, "mp4");
-		    sprintf(ffmpegCommand, "ffmpeg -i \"%s\\Frame%%05d.jpg\" -c:v libx264 -crf 18 \"%s\\temp.mp4\" ", OutputPath, OutputPath);
-		    sprintf(ffmpegAudioCommand, "ffmpeg -i \"%s\" -i \"%s\\temp.mp4\" -acodec copy -vcodec copy -shortest \"%s\\%s\"", AudioPath, OutputPath, OutputPath, OutputFilename);
-		    SetDlgItemText(hDlg, IDC_FFMPEG, ffmpegCommand);
-		    SetDlgItemText(hDlg, IDC_FFMPEGAUDIO, ffmpegAudioCommand);
-		    return FALSE;
-		case IDCOPY1:
+		case IDC_BROWSE_AUDIO:
+		    ZeroMemory(&ofn, sizeof(ofn));
+
+		    ofn.lStructSize = sizeof(ofn);
+		    ofn.hwndOwner = hDlg;
+		    ofn.lpstrFile = AudioPath;
+		    ofn.nMaxFile = MAX_PATH;
+		    ofn.lpstrFilter = "Audio Files (*.mp3;*.wav;*.flac)\0*.mp3;*.wav;*.flac\0" "All Files (*.*)\0*.*\0";;
+		    ofn.nFilterIndex = 1;
+
+		    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+		    if (GetOpenFileName(&ofn))
+			{
+			SetDlgItemText(hDlg, IDC_AUDIOPATH, AudioPath);
+//			if (HIWORD(wParam) == EN_CHANGE)
+			    UpdateFFmpegCommand(hDlg);
+			}
+		    break;
+
+		case IDC_FADEIN:
+		    FadeInSeconds = GetDlgItemInt(hDlg, IDC_FADEIN, &bTrans, TRUE);
+		    if (HIWORD(wParam) == EN_CHANGE)
+			UpdateFFmpegCommand(hDlg);
+		    break;
+
+		case IDC_FADEOUT:
+		    FadeOutSeconds = GetDlgItemInt(hDlg, IDC_FADEOUT, &bTrans, TRUE);
+		    if (HIWORD(wParam) == EN_CHANGE)
+			UpdateFFmpegCommand(hDlg);
+		    break;
+
+		case IDC_LOOPAUDIO:
+		    hCtrl = GetDlgItem(hDlg, IDC_LOOPAUDIO);
+		    LoopAudio = (BOOL)SendMessage(hCtrl, BM_GETCHECK, 0, 0L);
+
+		    UpdateFFmpegCommand(hDlg);
+		    break;
+
+		case IDC_COPY_FFMPEG:
 		    CopyTextToClipboard(hDlg, ffmpegCommand);
 		    return FALSE;
-		case IDCOPY2:
-		    CopyTextToClipboard(hDlg, ffmpegAudioCommand);
-		    return FALSE;
 
+		case IDCANCEL:
 		case IDOK:
 		    EndDialog(hDlg, TRUE);
 		    return TRUE;
@@ -568,9 +820,9 @@ int	write_jpg_file(HWND hwnd, TCHAR *szSaveFileName, BYTE *JPEGPixels, BOOL Writ
     return 0;
     }
 
-/////////////////////////////////////////////////////////////////
-//	take user keyboard input
-/////////////////////////////////////////////////////////////////
+/**************************************************************************
+	Take user keyboard input
+**************************************************************************/
 
 void user_data(void)
 
@@ -585,28 +837,257 @@ void user_data(void)
     }
 
 /**************************************************************************
+	Report status
+**************************************************************************/
+
+void ShowStatus(HWND hwnd, const char *fmt, ...)
+    {
+    char status[240];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(status, sizeof(status), fmt, args);
+    va_end(args);
+
+    status[sizeof(status) - 1] = '\0';
+    SetWindowText(hwnd, status);
+    }
+
+/**************************************************************************
+	Make sure we start with a fresh folder
+**************************************************************************/
+
+int DeleteExistingFrames(HWND hwnd, const char *OutputPath)
+    {
+    char SearchSpec[MAX_PATH];
+    char FullName[MAX_PATH];
+    char Message[512];
+    WIN32_FIND_DATA FindData;
+    int FrameCount = 0;
+
+    sprintf(SearchSpec, "%s\\Frame*.jpg", OutputPath);
+
+    HANDLE hFind = FindFirstFile(SearchSpec, &FindData);
+
+    if (hFind == INVALID_HANDLE_VALUE)
+	return 0;
+
+    do
+	{
+	FrameCount++;
+	} while (FindNextFile(hFind, &FindData));
+
+    FindClose(hFind);
+
+    if (FrameCount == 0)
+	return 0;
+
+    sprintf(Message, "Found %d existing frame files in:\n\n%s\n\nDelete them before creating a new sequence?", FrameCount, OutputPath);
+    if (MessageBox(hwnd, Message, "Delete Existing Frames?", MB_ICONQUESTION | MB_YESNO) != IDYES)
+	return -1;
+
+    hFind = FindFirstFile(SearchSpec, &FindData);
+
+    if (hFind == INVALID_HANDLE_VALUE)
+	return 0;
+
+    do
+	{
+	sprintf(FullName, "%s\\%s", OutputPath, FindData.cFileName);
+	DeleteFile(FullName);
+	} while (FindNextFile(hFind, &FindData));
+
+    FindClose(hFind);
+    return 0;
+    }
+
+/**************************************************************************
+	Add shadow text to a frame
+**************************************************************************/
+
+void ShadowText2Dib(HDC hDC, RECT *rect, LOGFONT *lf, int Offset, TCHAR *text)
+    {
+    static const int dx[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+    static const int dy[8] = { -1,-1,-1,  0, 0,  1, 1, 1 };
+
+    RECT r;
+
+    for (int i = 0; i < 8; i++)		// shadow in 8 directions
+	{
+	r = *rect;
+	OffsetRect(&r, dx[i] * Offset, dy[i] * Offset);
+	Dib.Text2Dib(hDC, &r, RGB(0, 0, 0), RGB(0, 0, 0), lf, TRANSPARENT, text);
+	}
+
+    // actual white text
+    Dib.Text2Dib(hDC, rect, RGB(255, 255, 255), RGB(0, 0, 0), lf, TRANSPARENT, text);
+    }
+
+/**************************************************************************
+	Add text to a frame
+**************************************************************************/
+
+void OverlayFrameText(HWND hwnd, int FrameNumber, int TotalFrames)
+    {
+    HDC hDC = GetDC(hwnd);
+
+    // Title
+    if (MovieTitle[0] != '\0')
+	{
+	RECT rectTitle;
+	rectTitle.left = Dib.DibWidth / 15;
+	rectTitle.top = Dib.DibHeight * 3 / 10;
+	rectTitle.right = Dib.DibWidth / 2;
+	rectTitle.bottom = Dib.DibHeight * 6 / 10;
+
+	LOGFONT lfTitle{};
+	lfTitle.lfHeight = -(Dib.DibHeight / 12);
+	lfTitle.lfWeight = FW_BOLD;
+	strcpy(lfTitle.lfFaceName, "Arial");
+
+	ShadowText2Dib(hDC, &rectTitle, &lfTitle, 2, MovieTitle);
+	}
+
+    // Subtitle
+    if (MovieSubTitle[0] != '\0')
+	{
+	RECT rectSubtitle;
+	rectSubtitle.left = Dib.DibWidth / 15;
+	rectSubtitle.top = Dib.DibHeight * 15 / 20;
+	rectSubtitle.right = Dib.DibWidth / 2;
+	rectSubtitle.bottom = Dib.DibHeight * 17 / 20;
+
+	LOGFONT lfSubtitle{};
+	lfSubtitle.lfHeight = -(Dib.DibHeight / 26);
+	lfSubtitle.lfWeight = FW_NORMAL;
+	strcpy(lfSubtitle.lfFaceName, "Arial");
+
+	ShadowText2Dib(hDC, &rectSubtitle, &lfSubtitle, 1, MovieSubTitle);
+	}
+    ReleaseDC(hwnd, hDC);
+    }
+
+/**************************************************************************
+	Format the zoom level for display
+**************************************************************************/
+
+void FormatZoomString(double Zoom, char *buffer, int size)
+    {
+    if (Zoom < 1000.0)
+	{
+	_snprintf_s(buffer, size, _TRUNCATE, "Zoom: %.2f", Zoom);
+	}
+    else
+	{
+	double exponent;
+	double logZoom;
+	double mantissa;
+
+	logZoom = log10(Zoom);
+	exponent = floor(logZoom);
+	mantissa = pow(10.0, logZoom - exponent);
+
+	_snprintf_s(buffer, size, _TRUNCATE, "Zoom: %.2f x 10^%.0f", mantissa, exponent);
+	}
+    }
+
+/**************************************************************************
+	Calculate the zoom level to be displayed
+**************************************************************************/
+
+double CalculateRelativeZoom(int FrameNumber)
+    {
+    int ZoomFrame = FrameNumber - StartSeconds * FramesPerSecond;
+
+    if (ZoomFrame <= 0)
+	return 1.0;
+
+    return pow(FrameRatio, (double)ZoomFrame);
+    }
+
+/**************************************************************************
+	Display zoom text
+**************************************************************************/
+
+void OverlayZoomText(HWND hwnd, int FrameNumber)
+    {
+    static char ZoomString[80] = "";
+    LOGFONT lf{};
+    HDC hDC = GetDC(hwnd);
+
+    lf.lfHeight = -(Dib.DibHeight / 25);
+    lf.lfWeight = FW_NORMAL;
+    strcpy(lf.lfFaceName, "Arial");
+
+    if ((FrameNumber - StartSeconds * FramesPerSecond) % (FramesPerSecond / 2) == 0)
+	{
+	double Zoom = CalculateRelativeZoom(FrameNumber);
+	FormatZoomString(Zoom, ZoomString, sizeof(ZoomString));
+	}
+
+    RECT rect;
+
+    rect.left = Dib.DibWidth / 40;
+    rect.right = Dib.DibWidth / 2;
+    rect.top = Dib.DibHeight * 17 / 20;
+    rect.bottom = Dib.DibHeight * 18 / 20;
+
+    ShadowText2Dib(hDC, &rect, &lf, 1, ZoomString);
+    }
+
+/**************************************************************************
+	If zoom = 1, then let's morph frames instead
+**************************************************************************/
+
+void MorphDib(CDib *Dib1, CDib *Dib2, CDib *Dst, double BlendFraction)
+    {
+    long NumBytes;
+    BYTE *p1;
+    BYTE *p2;
+    BYTE *pDst;
+
+    NumBytes = WIDTHBYTES((DWORD)Dst->DibWidth * (DWORD)Dst->BitsPerPixel) * (DWORD)Dst->DibHeight;
+
+    p1 = Dib1->DibPixels;
+    p2 = Dib2->DibPixels;
+    pDst = Dst->DibPixels;
+
+    for (long i = 0; i < NumBytes; i++)
+	{
+	pDst[i] = (BYTE)((1.0 - BlendFraction) * p1[i] + BlendFraction * p2[i]);
+	}
+    }
+
+/**************************************************************************
 	Here's where we do all the work
 **************************************************************************/
 
 int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
     {
     char    JPEGFilename[MAX_PATH];
-//    char    *fileptr;
-    char    status[240];
     double  RezizeValue[MAX_INSERTED_FRAMES];
-    double  Zoom1, Zoom2;
-    double ratio;
+    double  Zoom1 = 1.0, Zoom2 = 1.0;
     ResizeStruct	RESIZE = { 1.0, 1.0, 1, 1, false };
-    CDib    TempDib;
+    CDib    CurrentDib, PreviousDib, FinalDib;
     RECT    SelectRect;
-    int	    FrameCount = 0;
+    int	    NumEndFrames = 50;		// number of times to repeat last frame. Assume 2 seconds at 25 frames per second
+    int	    NumStartFrames = 50;		// number of times to repeat first frame. Assume 2 seconds at 25 frames per second
+    int	    FrameNumber = 0;
+
+    NumStartFrames = StartSeconds * FramesPerSecond;
+    NumEndFrames = EndSeconds * FramesPerSecond;
+
+    int FramesPerImage = (NumInsertedFrames > 0) ? NumInsertedFrames : 1;
+    TotalFrames = NumStartFrames + (filecount * FramesPerImage) + NumEndFrames;
 
     State = BATCH;
 
     InitFileList();							// init view next file if directory changes
     LoadFileList(hwnd, Filename);
     SortFileList();
-    if (NumInsertedFrames > 0)						// we need to calulate the relative zoom level for each inserted frame
+    if (DeleteExistingFrames(hwnd, OutputPath) < 0)
+	return -1;
+    if (NumInsertedFrames > 0)						// we need to calculate the relative zoom level for each inserted frame
 	{
 	if (decode_png_header(hwnd, FileList[0].FileName, "ManpWIN Sequence Generator") < 0)		// get zoom for first frame
 	    return -1;
@@ -625,17 +1106,23 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 	    }
 	else
 	    memset(Dib.DibPixels, 0, WIDTHBYTES((DWORD)width * (DWORD)bits_per_pixel) * (DWORD)height);
-	if (png_decoder(hwnd, FileList[0].FileName, "ManpWIN Sequence Generqator", &Zoom1, true) < 0)
+	if (png_decoder(hwnd, FileList[0].FileName, "ManpWIN Sequence Generqator", &Zoom1, true, &Dib) < 0)
 	    return -1;
+
+	StartZoom = Zoom1;
 
 	if (decode_png_header(hwnd, FileList[1].FileName, "ManpWIN Sequence Generator") < 0)		// get zoom for second frame
 	    return -1;
 
-	if (png_decoder(hwnd, FileList[1].FileName, "ManpWIN Sequence Generqator", &Zoom2, true) < 0)
+	if (png_decoder(hwnd, FileList[1].FileName, "ManpWIN Sequence Generqator", &Zoom2, true, &Dib) < 0)
 	    return -1;
 
 	if (Zoom1 <= 0.0 || Zoom2 <= 0.0 || Zoom1 == Zoom2)
-	    UseScaling = false;
+	    {
+	    ratio = 1.0;	    
+	    for (int i = 0; i < NumInsertedFrames; i++)
+		RezizeValue[i] = 1.0;
+	    }
 	else
 	    {
 	    ratio = Zoom1 / Zoom2;
@@ -643,9 +1130,33 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 		RezizeValue[i] = pow(ratio, (double)i / NumInsertedFrames);
 	    }
 	}
-    for (int i = 0; i < filecount; ++i)
-//    for (int i = 0; i < 25; ++i)
+    
+    ratio = Zoom1 / Zoom2;
+    FrameRatio = pow(ratio, 1.0 / NumInsertedFrames);
+    BOOL DisplayZoom = (Zoom1 != Zoom2 && UserDisplayZoom);
+
+    // Initialise a few extra Dibs
+    if (CurrentDib.InitDib(width, height, bits_per_pixel) == NULL)
 	{
+	switch (Dib.DibErrorCode)
+	    {
+	    case NODIBMEMORY:
+		MessageBox(hwnd, "Can't allocate DIB memory. Using windows default palette", szAppName, MB_ICONEXCLAMATION | MB_OK);
+		break;
+	    case NOPIXELMEMORY:
+		MessageBox(hwnd, "Can't allocate memory for pixels", szAppName, MB_ICONEXCLAMATION | MB_OK);
+		break;
+	    }
+	return -1;
+	}
+    else
+	memset(CurrentDib.DibPixels, 0, WIDTHBYTES((DWORD)width * (DWORD)bits_per_pixel) * (DWORD)height);
+    PreviousDib = CurrentDib;		// initialise the rest to CurrentDib by simple copying
+    FinalDib = CurrentDib;
+
+    for (int i = 0; i < filecount; ++i)
+	{
+	bool	IsMorph = false;
 	user_data();
 	if (State == NORMAL)
 	    break;
@@ -673,60 +1184,127 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 	    memset(Dib.DibPixels, 0, WIDTHBYTES((DWORD)width * (DWORD)bits_per_pixel) * (DWORD)height);
 
 	double	dummy;
-	if (png_decoder(hwnd, Filename, "ManpWIN Sequence Generator", &dummy, false) < 0)
+	if (png_decoder(hwnd, Filename, "ManpWIN Sequence Generator", &dummy, false, &Dib) < 0)
 	    return -1;
 
-	if (NumInsertedFrames > 0)
+	CurrentDib = Dib;       // clean current PNG
+	if (i == 0 && StartSeconds > 0)
 	    {
-	    TempDib = Dib;
-	    for (int j = 0; j < NumInsertedFrames; j++)
+	    OverlayFrameText(hwnd, FrameNumber, TotalFrames);
+	    for (int k = 0; k < NumStartFrames; k++)
 		{
-		if (j > 0)	// don't resize original frame
-		    { 
-		    if (UseScaling)
-			{
-			RESIZE.HorResizeValue = RESIZE.VertResizeValue = RezizeValue[j];
-			ResizeDib(&Dib, RESIZE, true);
-			SelectRect.left = (Dib.DibWidth - TempDib.DibWidth) / 2;
-			SelectRect.right = SelectRect.left + TempDib.DibWidth;
-			SelectRect.top = (Dib.DibHeight - TempDib.DibHeight) / 2;
-			SelectRect.bottom = SelectRect.top + TempDib.DibHeight;
-			NormalizeRect(SelectRect);
-			Crop(hwnd, SelectRect);
-			}
-		    }
-		FrameCount = i * NumInsertedFrames + j;
-		sprintf(status, "Creating Frame %d", FrameCount);
-		SetWindowText(hwnd, status);					// Show formatted text in the caption bar
-		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, i * NumInsertedFrames + j);
+		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
+		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
 		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
 		    return -1;
-		Dib = TempDib;
+		FrameNumber++;
+		}
+	    }
+	Dib = CurrentDib;
+
+	if (NumInsertedFrames > 1 && ratio != 1.0)
+	    {
+	    CurrentDib = Dib;
+	    // Zoom logic
+	    for (int j = 0; j < NumInsertedFrames; j++)
+		{
+		if (j > 0)
+		    {
+		    RESIZE.HorResizeValue = RESIZE.VertResizeValue = RezizeValue[j];
+
+		    ResizeDib(&Dib, RESIZE, true);
+
+		    SelectRect.left = (Dib.DibWidth - CurrentDib.DibWidth) / 2;
+		    SelectRect.right = SelectRect.left + CurrentDib.DibWidth;
+		    SelectRect.top = (Dib.DibHeight - CurrentDib.DibHeight) / 2;
+		    SelectRect.bottom = SelectRect.top + CurrentDib.DibHeight;
+
+		    NormalizeRect(SelectRect);
+		    Crop(hwnd, SelectRect);
+		    }
+
+		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
+		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
+
+		if (DisplayZoom)
+		    OverlayZoomText(hwnd, FrameNumber);
+
+		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		    return -1;
+
+		if (i == filecount - 1 && j == NumInsertedFrames - 1)
+		    FinalDib = Dib;
+
+		Dib = CurrentDib;
+		FrameNumber++;
+		}
+	    }
+	else if (NumInsertedFrames > 1 && ratio == 1.0)
+	    {
+	    // Morph logic
+	    if (i == 0)
+		{
+		// First PNG - just write it
+		ShowStatus(hwnd, "Creating Frame %d of %d",  FrameNumber + 1, TotalFrames);
+		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
+		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		    return -1;
+		FrameNumber++;
+		}
+	    else
+		{
+		// Morph frames first
+		for (int j = 1; j < NumInsertedFrames; j++)
+		    {
+		    double BlendFraction = (double)j / (double)NumInsertedFrames;
+		    MorphDib(&PreviousDib, &CurrentDib, &Dib, BlendFraction);
+		    ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
+		    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
+		    if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+			return -1;
+		    FrameNumber++;
+		    }
+		// Then write the real PNG
+		Dib = CurrentDib;
+		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
+		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
+		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		    return -1;
+		FrameNumber++;
 		}
 	    }
 	else
 	    {
-	    FrameCount = i;
-	    sprintf(status, "Creating Frame %d", FrameCount);
-	    SetWindowText(hwnd, status);					// Show formatted text in the caption bar
-	    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, i);
+	    ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
+	    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
+	    if (DisplayZoom)
+		OverlayZoomText(hwnd, FrameNumber);
 	    if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
 		return -1;
+	    FrameNumber++;
 	    }
+
 	InvalidateRect(hwnd, &r, FALSE);
+	PreviousDib = CurrentDib;
 	}
 
     if (NumEndFrames > 0)
 	{
+	int FinalZoomFrameNumber = FrameNumber;
 	for (int j = 0; j < NumEndFrames; j++)
 	    {
-	    sprintf(status, "Creating Frame %d", j + FrameCount);
-	    SetWindowText(hwnd, status);					// Show formatted text in the caption bar
-	    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, j + FrameCount);
+	    ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
+	    if (NumInsertedFrames > 1)
+		Dib = FinalDib;              // clean copy every time
+	    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
+	    if (DisplayZoom)
+		OverlayZoomText(hwnd, FinalZoomFrameNumber);
 	    if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
 		return -1;
+	    FrameNumber++;
 	    }
 	}
 
+    ShowStatus(hwnd, "Created %d frames", FrameNumber);
     return 0;
     }

@@ -55,7 +55,7 @@ extern	int	height, xdots, ydots, width, bits_per_pixel;
 extern	BYTE	*GetOrthoPalette(BYTE *);
 extern	void	SwapColours(WORD);
 
-extern	CDib	Dib;				// Device Independent Bitmap
+//extern	CDib	Dib;				// Device Independent Bitmap
 extern	"C"	png_text	TextData[];
 
 static	png_structp	read_ptr;
@@ -343,8 +343,7 @@ int	decode_png_header(HWND hwnd, char *infile, char *szAppName)
 	Decode the PNG Image
  *************************************************************************/
 
-int   png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool UseComment)
-
+int   png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool UseComment, CDib *TargetDib)
     {
     DWORD	linesize;
     char	s[480];
@@ -352,7 +351,7 @@ int   png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool 
     int		num_text;
     long	bytes;
     long	bytes_per_pixel;
-    BYTE	*LinePtr = Dib.DibPixels;
+    BYTE	*LinePtr = TargetDib->DibPixels;
     png_bytep	*row_pointers;
 
     // Setting jmpbuf for read struct
@@ -366,11 +365,11 @@ int   png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool 
 	return (-1);
 	}
 
-    bytes = WIDTHBYTES((DWORD)read_ptr->width * (DWORD)Dib.BitsPerPixel);
+    bytes = WIDTHBYTES((DWORD)read_ptr->width * (DWORD)TargetDib->BitsPerPixel);
     bytes_per_pixel = bytes / (DWORD)read_ptr->width;
-    linesize = (Dib.BitsPerPixel > 8) ? (WORD)WIDTHBYTES((DWORD)Dib.DibWidth * (DWORD)Dib.BitsPerPixel) : Dib.DibWidth;
+    linesize = (TargetDib->BitsPerPixel > 8) ? (WORD)WIDTHBYTES((DWORD)TargetDib->DibWidth * (DWORD)TargetDib->BitsPerPixel) : TargetDib->DibWidth;
 
-    if ((row_pointers = new png_bytep[Dib.DibHeight]) == NULL)
+    if ((row_pointers = new png_bytep[TargetDib->DibHeight]) == NULL)
 	{
 	// free the structures 
 	if (read_ptr != NULL)
@@ -381,7 +380,7 @@ int   png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool 
 	return -1;
 	}
 
-    for (i = Dib.DibHeight - 1; i >= 0; i--)
+    for (i = TargetDib->DibHeight - 1; i >= 0; i--)
 	{
 	row_pointers[i] = (png_bytep)LinePtr;
 	LinePtr += linesize;
