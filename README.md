@@ -62,22 +62,23 @@ Detailed documentation is available in the docs directory.
 
 ### Getting Started
 
-- GettingStarted.md
+- [Getting Started](docs/GettingStarted.md)
 
 ### Tutorials
 
-- CreatingAnimationsInManpWIN.md
+- [Creating Animations in ManpWIN](docs/CreatingAnimationsInManpWIN.md)
 
 ### User Guides
 
-- PrepareFrames.md
-- CreateFFmpegScript.md
-- FFmpegInstallation.md
+- [Prepare JPG Frames](docs/PrepareFrames.md)
+- [Create FFmpeg Script](docs/CreateFFmpegScript.md)
+- [FFmpeg Installation](docs/FFmpegInstallation.md)
 
 ### Background
 
-- AnimationTheory.md
-- ManpMovieMaker Modernisation.docx
+- [Animation Theory](docs/AnimationTheory.md)
+- [ManpMovieMaker Modernisation](docs/ManpMovieMaker%20Modernisation.docx)
+
 ---
 
 # Project Status
