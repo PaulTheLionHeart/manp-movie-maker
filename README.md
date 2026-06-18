@@ -56,19 +56,28 @@ Current capabilities include:
 
 ---
 
-# Documentation
+## Documentation
 
-Detailed documentation is being developed and will be provided in the `docs` directory.
+Detailed documentation is available in the docs directory.
 
-Planned documents include:
+### Getting Started
 
-* GettingStarted.md
-* CreatingAnimationsInManpWIN.md
-* PrepareFrames.md
-* CreateFFmpegScript.md
-* FFmpegInstallation.md
-* AnimationTheory.md
+- GettingStarted.md
 
+### Tutorials
+
+- CreatingAnimationsInManpWIN.md
+
+### User Guides
+
+- PrepareFrames.md
+- CreateFFmpegScript.md
+- FFmpegInstallation.md
+
+### Background
+
+- AnimationTheory.md
+- ManpMovieMaker Modernisation.docx
 ---
 
 # Project Status
