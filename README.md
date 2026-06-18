@@ -1,87 +1,89 @@
 # ManpMovieMaker
 
-ManpMovieMaker is a companion application for ManpWIN that creates high-quality fractal animations from PNG image sequences.
+ManpMovieMaker is a companion application for ManpWIN that bridges the gap between fractal rendering and movie production.
 
-The program was originally developed to solve a practical problem faced by many fractal enthusiasts: creating smooth zoom movies without having to render thousands of expensive intermediate frames.
+The program was originally developed to solve a practical problem faced by fractal enthusiasts and deep-zoom explorers: creating smooth, high-quality animations without having to render every movie frame directly from the fractal engine.
 
-By resizing and cropping images between rendered frames, ManpMovieMaker can generate intermediate animation frames that significantly reduce rendering times while still producing smooth zoom animations. The resulting image sequences can then be assembled into high-quality MP4 movies using FFmpeg.
+By generating intermediate animation frames between rendered images, ManpMovieMaker can dramatically reduce production times while still producing smooth visual motion. The generated frame sequences can then be assembled into professional-quality MP4 movies using FFmpeg.
 
-Although originally designed for deep zoom animations, the program can also be used to assemble other forms of fractal animation, including parameter animations and Julia set sequences.
+Although originally designed for deep zoom animations, ManpMovieMaker can also be used for many other forms of image-based animation, including:
+
+* Deep zoom sequences
+* Julia set animations
+* Parameter animations
+* Morphing image sequences
+* General image-based movies
+
+Over time, ManpMovieMaker has evolved beyond a simple interpolation utility into a movie-production tool that assists with frame generation, FFmpeg scripting, audio integration, and final movie creation.
 
 ---
 
-## Current Features
+# Why Use ManpMovieMaker?
 
-* Create animation frame sequences from ManpWIN PNG images.
-* Generate interpolated frames between rendered images.
-* Resize and crop images to maintain smooth zoom transitions.
+Producing high-quality fractal movies can be computationally expensive.
+
+A single deep zoom animation may require thousands of rendered images, with each image potentially taking seconds, minutes, or even hours to generate depending on image size, zoom depth, rendering method, and arithmetic precision.
+
+ManpMovieMaker helps reduce this workload by generating additional intermediate frames between rendered images, allowing smooth animations to be produced from a smaller set of source frames.
+
+The result is a practical workflow that combines the rendering power of ManpWIN with the movie-production capabilities of FFmpeg.
+
+---
+
+# Features
+
+Current capabilities include:
+
+* Generate JPG animation frames from PNG image sequences.
+* Create smooth zoom animations.
+* Create smooth morphing animations between rendered images.
+* Insert intermediate frames between source images.
+* Control movie frame rates.
+* Add start and end hold periods.
 * Generate FFmpeg command scripts.
-* Add audio tracks to completed animations.
+* Add music tracks to completed movies.
+* Support audio fade-in and fade-out effects.
 * Create high-quality MP4 movies using FFmpeg.
 
 ---
 
-## Typical Workflow
+# Typical Workflow
 
-1. Generate a sequence of PNG frames using ManpWIN.
-2. Load the frame sequence into ManpMovieMaker.
-3. Specify the number of interpolated frames required.
-4. Generate the complete frame sequence.
-5. Create FFmpeg commands.
-6. Assemble the final MP4 movie.
-7. Optionally add an audio soundtrack.
+1. Create a sequence of PNG images.
+2. Generate animation JPG frames using ManpMovieMaker.
+3. Create an FFmpeg movie-production script.
+4. Produce a high-quality MP4 movie.
 
 ---
 
-## Project Status
+# Documentation
 
-ManpMovieMaker is currently undergoing a modernisation program.
+Detailed documentation is being developed and will be provided in the `docs` directory.
 
-Planned improvements include:
+Planned documents include:
 
-* Modern C++ development practices.
-* CMake build support.
-* Improved FFmpeg integration.
-* Simplified workflow.
-* Improved documentation.
-* Audio fade-in and fade-out support.
-* Final-frame hold support.
-* Improved movie production tools.
-
-The goal is to preserve the proven functionality of the existing application while modernising the codebase and improving usability.
+* GettingStarted.md
+* CreatingAnimationsInManpWIN.md
+* PrepareFrames.md
+* CreateFFmpegScript.md
+* FFmpegInstallation.md
+* AnimationTheory.md
 
 ---
 
-## Documentation
+# Project Status
 
-Project planning and modernisation documents are located in the `docs` directory.
+ManpMovieMaker is currently undergoing active modernisation and enhancement.
 
-Primary document:
-
-- ManpMovieMaker Modernisation.docx**
+Development is focused on preserving the proven functionality of the original application while improving usability, documentation, workflow integration, and long-term maintainability.
 
 ---
 
-## FFmpeg
+# Related Projects
 
-ManpMovieMaker uses FFmpeg to create MP4 movies.
+## ManpWIN
 
-FFmpeg is not distributed with ManpMovieMaker and must be installed separately. Future documentation will include detailed installation and configuration instructions.
-
----
-
-## Related Projects
-
-### ManpWIN
-
-ManpMovieMaker was developed as a companion application for ManpWIN, a Windows fractal generation and exploration system supporting:
-
-* Deep zoom rendering
-* Perturbation theory
-* Bilinear Approximation (BLA)
-* Double-double, quad-double and arbitrary precision arithmetic
-* Formula parsing
-* Fractal animation generation
+ManpMovieMaker was developed as a companion application for ManpWIN, a Windows fractal generation and exploration system supporting deep zoom rendering, perturbation theory, Bilinear Approximation (BLA), arbitrary precision arithmetic, formula parsing, and fractal animation generation.
 
 Repository:
 
@@ -89,19 +91,12 @@ https://github.com/PaulTheLionHeart/manpwin
 
 ---
 
-## Acknowledgements
+# Credits
 
-ManpMovieMaker was created by **Paul the LionHeart**.
+**Paul the LionHeart**
+Author and Developer
 
-The ongoing modernisation, documentation, architectural planning, testing strategies, and development discussions have been greatly assisted through collaboration with **ChatGPT**, acting as a workshop assistant, reviewer, teacher, sounding board, and enthusiastic dragon spotter.
-
-### Credits
-
-| Contributor        | Role               |
-| ------------------ | ------------------ |
-| Paul the LionHeart | Author             |
-| ChatGPT            | Workshop Assistant |
-
----
+**ChatGPT**
+Workshop Assistant, Reviewer, Teacher, Sounding Board, and Enthusiastic Dragon Spotter
 
 *"Fun, beauty and passion."*
