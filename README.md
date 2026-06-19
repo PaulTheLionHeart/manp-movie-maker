@@ -77,7 +77,7 @@ Detailed documentation is available in the docs directory.
 ### Background
 
 - [Animation Theory](docs/AnimationTheory.md)
-- [ManpMovieMaker Modernisation](docs/ManpMovieMaker%20Modernisation.docx)
+- [ManpMovieMaker Modernisation](docs/ManpMovieMakerModernisation.md)
 
 ---
 
