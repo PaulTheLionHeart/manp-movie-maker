@@ -26,7 +26,7 @@ Animation Generation → Setup Zoom Animation
 
 The Zoom Animation Setup dialog is shown below.
 
-*[Insert Zoom Animation Setup Screenshot]*
+![Zoom Animation Setup](../images/ZoomAnimationSetup.png)
 
 ---
 
