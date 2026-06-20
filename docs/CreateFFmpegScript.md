@@ -86,6 +86,23 @@ Note that pressing OK simply closes the dialog. The FFmpeg command is not automa
 
 ---
 
+## Output Frame Dimensions
+
+ManpMovieMaker writes JPG frames that are intended to be assembled into an MP4 using FFmpeg.
+
+When creating H.264 MP4 output with `yuv420p`, FFmpeg requires the frame width and height to be even numbers.
+
+For best performance, prepare animations using image sizes with even width and height. If an odd frame dimension is used, ManpMovieMaker automatically crops the final image by one pixel as required before writing the JPG file.
+
+This compatibility crop allows FFmpeg to encode the movie successfully, but it introduces a small amount of extra processing during JPG generation. In other words, ManpMovieMaker can correct odd dimensions automatically, but even dimensions remain the preferred choice.
+
+For example:
+
+- `1200 × 675` becomes `1200 × 674`
+- `1281 × 720` becomes `1280 × 720`
+
+---
+
 ## Generating the FFmpeg Command
 
 After configuring the required settings:

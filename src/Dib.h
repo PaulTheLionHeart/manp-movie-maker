@@ -39,6 +39,7 @@ class CDib
     void		InsertDib(int, int, BYTE *, unsigned, unsigned);
     void		Text2Dib(HDC, RECT *, TCHAR *);
     void		Text2Dib(HDC, RECT *, LOGFONT *, TCHAR *);
+    void		ShadowText2Dib(HDC hDc,	RECT* rect, LOGFONT* lf, int Offset, const TCHAR* text);
     void		Text2Dib(HDC, RECT *, COLORREF, COLORREF, LOGFONT *, int, TCHAR *);
     void		ClearDib(int Red, int Green, int Blue);
 //    void		ClearDib(int);

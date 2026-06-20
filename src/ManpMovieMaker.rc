@@ -51,9 +51,9 @@ CAPTION "About Paul's Constant Generation Program"
 FONT 8, "MS Sans Serif"
 {
     PUSHBUTTON      "OK", IDOK, 75, 78, 80, 14, WS_GROUP | NOT WS_TABSTOP
-    CTEXT           "Version 2.0a", IDC_STATIC, 82, 28, 40, 8, SS_CENTER
+    CTEXT           "Version 2.0b", IDC_STATIC, 82, 28, 40, 8, SS_CENTER
     CTEXT           "ManpWIN Animation File Processing", IDC_STATIC, 45, 16, 138, 8, SS_CENTER
-    CTEXT           "Copyright © Paul de Leeuw Computers 18/06/2026", IDC_STATIC, 33, 42, 164, 8, SS_CENTER
+    CTEXT           "Copyright © Paul de Leeuw Computers 20/06/2026", IDC_STATIC, 33, 42, 164, 8, SS_CENTER
     CTEXT           "ABN 72 360 922 562", IDC_STATIC, 81, 58, 68, 8, SS_CENTER
     ICON            IDI_ICON1, IDC_STATIC, 22, 9, 21, 20, SS_ICON
 }

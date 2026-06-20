@@ -18,6 +18,23 @@ The Prepare Frames dialog is shown below.
 
 ---
 
+## Output Frame Dimensions
+
+ManpMovieMaker writes JPG frames that are intended to be assembled into an MP4 using FFmpeg.
+
+When creating H.264 MP4 output with `yuv420p`, FFmpeg requires the frame width and height to be even numbers.
+
+For best performance, prepare animations using image sizes with even width and height. If an odd frame dimension is used, ManpMovieMaker automatically crops the final image by one pixel as required before writing the JPG file.
+
+This compatibility crop allows FFmpeg to encode the movie successfully, but it introduces a small amount of extra processing during JPG generation. In other words, ManpMovieMaker can correct odd dimensions automatically, but even dimensions remain the preferred choice.
+
+For example:
+
+- `1200 × 675` becomes `1200 × 674`
+- `1281 × 720` becomes `1280 × 720`
+
+---
+
 ## Selecting the PNG Sequence
 
 The first PNG file identifies the source image sequence.
@@ -103,6 +120,12 @@ Typical values are:
 
 Larger values may further reduce rendering requirements but can gradually reduce image quality.
 
+## Zoom Text Overlay
+
+If zoom text is enabled, ManpMovieMaker overlays the current zoom value onto zoom-animation frames at regular intervals during frame generation.
+
+The zoom text is drawn directly onto the generated JPG frames, so it becomes part of the final animation and does not require any additional processing in FFmpeg.
+
 ---
 
 ## Opening Text and Subtext
@@ -155,6 +178,9 @@ The generated sequence is now ready for movie creation.
 ---
 
 ## Next Step
+
+> **Tip**  
+> For best compatibility with FFmpeg and H.264 MP4 output, use image sizes with even width and height. If an odd dimension is used, ManpMovieMaker will automatically crop the frame to the nearest valid size.
 
 Proceed to:
 

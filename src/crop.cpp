@@ -16,7 +16,7 @@
 #define SWAP(x,y)   ((x)^=(y)^=(x)^=(y))
 
 // Global Variables:
-extern	CDib		Dib;			// Device Independent Bitmap class instance - main image
+//extern	CDib		Dib;			// Device Independent Bitmap class instance - main image
 
 extern	void	SetupView(void);
 
@@ -35,7 +35,7 @@ void	DisplayDibErrorMessage(HWND hwnd, const CDib & Dib, char * szTitle)
 	Resize the Picture by factor in type
   -------------------------------------------------------------------*/
 
-DWORD	CalcAddress(HWND hwnd, WORD i, WORD OrigWidth, WORD OrigHeight, RECT & SelectRect)
+DWORD	CalcAddress(HWND hwnd, CDib *pDib, WORD i, WORD OrigWidth, WORD OrigHeight, RECT & SelectRect)
 
     {
     DWORD	offset, offset1, address;
@@ -49,7 +49,7 @@ DWORD	CalcAddress(HWND hwnd, WORD i, WORD OrigWidth, WORD OrigHeight, RECT & Sel
     ScanBottom = ((SelectRect.bottom));
     offset = (DWORD) (OrigHeight - ScanBottom + (i - VertScrollPos));
     offset1 = (DWORD) (ScanLeft + HorScrollPos);
-    address = offset * WIDTHBYTES((DWORD)OrigWidth * (DWORD)Dib.BitsPerPixel) + offset1 * 3L;
+    address = offset * WIDTHBYTES((DWORD)OrigWidth * (DWORD)pDib->BitsPerPixel) + offset1 * 3L;
 	return address;
     }
 
@@ -81,12 +81,12 @@ void WINAPI NormalizeRect(RECT & prc)
 	    int	xmin, ymin;
   -------------------------------------------------------------------*/
 
-int	Crop(HWND hwnd, RECT & SelectRect)
+int Crop(HWND hwnd, CDib *pDib, RECT &SelectRect)
     {
 //    char	s[MAXLINE];
     char	szCropTitle [] = TEXT("Cropping Image");
-    WORD	OrigWidth = Dib.DibWidth;
-    WORD	OrigHeight = Dib.DibHeight;
+    WORD	OrigWidth = pDib->DibWidth;
+    WORD	OrigHeight = pDib->DibHeight;
     WORD	NewHeight, NewWidth;
 
     // Remap the height and width after forcing selection to be within picture
@@ -125,12 +125,12 @@ int	Crop(HWND hwnd, RECT & SelectRect)
 		}
 */
 	    Dest = TempDIB.DibPixels + NewWidthBytes * i;
-	    Source = Dib.DibPixels + CalcAddress(hwnd, i, OrigWidth, OrigHeight, SelectRect);
+	    Source = pDib->DibPixels + CalcAddress(hwnd, pDib, i, OrigWidth, OrigHeight, SelectRect);
 	    memcpy(Dest, Source, NewWidthBytes);
 	    }
 	// Show formatted text in the caption bar
 //	UpdateTitleBar(hwnd);
-	Dib = TempDIB;	// Copy the rescaled image
+	*pDib = TempDIB;	// Copy the rescaled image
 	}
     catch (char * emmg)
 	{

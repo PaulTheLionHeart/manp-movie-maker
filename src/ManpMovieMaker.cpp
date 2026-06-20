@@ -40,7 +40,7 @@ extern	void	InitFileList(void);
 extern	int	LoadFileList(HWND hwnd, char *Filename);
 extern	void	SortFileList(void);
 extern	int	ResizeDib(CDib *LocalDib, ResizeStruct RESIZE, BOOL InterpFlag);
-extern	int	Crop(HWND hwnd, RECT & SelectRect);
+extern	int	Crop(HWND hwnd, CDib *pDib, RECT & SelectRect);
 extern	void	WINAPI	NormalizeRect(RECT &);
 
 long FAR PASCAL WndProc (HWND, UINT, UINT, LONG);
@@ -783,22 +783,57 @@ void	SetupView(HWND hwnd)
     VertOffset = (screeny - display_height) / 2 + GetSystemMetrics(SM_CYCAPTION) + yFrame + GetSystemMetrics(SM_CYMENU);
     }
 
+/**************************************************************************
+    Normalise DIB dimensions for video encoding
+
+    H.264 / yuv420p requires even width and height.
+    Crop one column from the right and/or one row from the bottom if needed.
+**************************************************************************/
+
+int NormaliseDib(HWND hwnd, CDib *Dib)
+    {
+    if ((Dib->DibWidth & 1) == 0 && (Dib->DibHeight & 1) == 0)
+	return 0;
+
+    RECT SelectRect;
+
+    SelectRect.left = 0;
+    SelectRect.top = 0;
+    SelectRect.right = Dib->DibWidth & ~1;
+    SelectRect.bottom = Dib->DibHeight & ~1;
+
+    if (SelectRect.right <= 0 || SelectRect.bottom <= 0)
+	{
+	MessageBox(hwnd,
+	    "Invalid DIB dimensions while normalising image for JPEG output",
+	    szAppName,
+	    MB_ICONEXCLAMATION | MB_OK);
+	MessageBeep(0);
+	return -1;
+	}
+
+    return Crop(hwnd, Dib, SelectRect);
+    }
 
 //////////////////////////////////////////////////////////////////////
 //	Save JPEG File
 //////////////////////////////////////////////////////////////////////
 
-int	write_jpg_file(HWND hwnd, TCHAR *szSaveFileName, BYTE *JPEGPixels, BOOL WriteThumbFile, WORD ImageWidth, WORD ImageHeight, WORD Bits)
+int write_jpg_file(HWND hwnd, TCHAR *szSaveFileName, CDib *pDib, BOOL WriteThumbFile)
     {
     char	t[200];
     FILE	*fp;
     int		quality = 90;
 
-    if (setjmp(mark))				// PNG and JPEG error handling
+     if (setjmp(mark))				// PNG and JPEG error handling
 	{
 	HandleJPEGError();
 	return -1;
 	}
+
+     if (NormaliseDib(hwnd, pDib) < 0)
+	 return -1;
+
     if ((fp = fopen(szSaveFileName, "wb")) == NULL)
 	{
 	wsprintf(t, "Unable to open file: %s", szSaveFileName);
@@ -807,7 +842,11 @@ int	write_jpg_file(HWND hwnd, TCHAR *szSaveFileName, BYTE *JPEGPixels, BOOL Writ
 	return -1;
 	}
 
-    if (SaveJPEG(hwnd, fp, JPEGPixels, WriteThumbFile, quality, &ImageHeight, &ImageWidth, &Bits) < 0)
+    WORD    ImageWidth = pDib->DibWidth;
+    WORD    ImageHeight = pDib->DibHeight;
+    WORD    Bits = pDib->BitsPerPixel;
+
+    if (SaveJPEG(hwnd, fp, pDib->DibPixels, WriteThumbFile, quality, &ImageHeight, &ImageWidth, &Bits) < 0)
 	{
 	sprintf(t, TEXT("Error in Opening %s"), szSaveFileName);
 	MessageBox(hwnd, t, "Write JPEG", MB_ICONEXCLAMATION | MB_OK);
@@ -905,6 +944,7 @@ int DeleteExistingFrames(HWND hwnd, const char *OutputPath)
 	Add shadow text to a frame
 **************************************************************************/
 
+/*
 void ShadowText2Dib(HDC hDC, RECT *rect, LOGFONT *lf, int Offset, TCHAR *text)
     {
     static const int dx[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
@@ -922,6 +962,7 @@ void ShadowText2Dib(HDC hDC, RECT *rect, LOGFONT *lf, int Offset, TCHAR *text)
     // actual white text
     Dib.Text2Dib(hDC, rect, RGB(255, 255, 255), RGB(0, 0, 0), lf, TRANSPARENT, text);
     }
+*/
 
 /**************************************************************************
 	Add text to a frame
@@ -945,7 +986,7 @@ void OverlayFrameText(HWND hwnd, int FrameNumber, int TotalFrames)
 	lfTitle.lfWeight = FW_BOLD;
 	strcpy(lfTitle.lfFaceName, "Arial");
 
-	ShadowText2Dib(hDC, &rectTitle, &lfTitle, 2, MovieTitle);
+	Dib.ShadowText2Dib(hDC, &rectTitle, &lfTitle, 2, MovieTitle);
 	}
 
     // Subtitle
@@ -962,7 +1003,7 @@ void OverlayFrameText(HWND hwnd, int FrameNumber, int TotalFrames)
 	lfSubtitle.lfWeight = FW_NORMAL;
 	strcpy(lfSubtitle.lfFaceName, "Arial");
 
-	ShadowText2Dib(hDC, &rectSubtitle, &lfSubtitle, 1, MovieSubTitle);
+	Dib.ShadowText2Dib(hDC, &rectSubtitle, &lfSubtitle, 1, MovieSubTitle);
 	}
     ReleaseDC(hwnd, hDC);
     }
@@ -1032,7 +1073,9 @@ void OverlayZoomText(HWND hwnd, int FrameNumber)
     rect.top = Dib.DibHeight * 17 / 20;
     rect.bottom = Dib.DibHeight * 18 / 20;
 
-    ShadowText2Dib(hDC, &rect, &lf, 1, ZoomString);
+    Dib.ShadowText2Dib(hDC, &rect, &lf, 1, ZoomString);
+    if (hDC)
+	ReleaseDC(hwnd, hDC);
     }
 
 /**************************************************************************
@@ -1195,7 +1238,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 		{
 		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
 		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
-		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
 		    return -1;
 		FrameNumber++;
 		}
@@ -1220,7 +1263,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 		    SelectRect.bottom = SelectRect.top + CurrentDib.DibHeight;
 
 		    NormalizeRect(SelectRect);
-		    Crop(hwnd, SelectRect);
+		    Crop(hwnd, &Dib, SelectRect);
 		    }
 
 		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
@@ -1229,7 +1272,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 		if (DisplayZoom)
 		    OverlayZoomText(hwnd, FrameNumber);
 
-		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
 		    return -1;
 
 		if (i == filecount - 1 && j == NumInsertedFrames - 1)
@@ -1247,7 +1290,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 		// First PNG - just write it
 		ShowStatus(hwnd, "Creating Frame %d of %d",  FrameNumber + 1, TotalFrames);
 		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
-		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
 		    return -1;
 		FrameNumber++;
 		}
@@ -1260,7 +1303,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 		    MorphDib(&PreviousDib, &CurrentDib, &Dib, BlendFraction);
 		    ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
 		    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
-		    if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		    if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
 			return -1;
 		    FrameNumber++;
 		    }
@@ -1268,7 +1311,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 		Dib = CurrentDib;
 		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
 		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
-		if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+		if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
 		    return -1;
 		FrameNumber++;
 		}
@@ -1279,7 +1322,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 	    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
 	    if (DisplayZoom)
 		OverlayZoomText(hwnd, FrameNumber);
-	    if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+	    if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
 		return -1;
 	    FrameNumber++;
 	    }
@@ -1299,7 +1342,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 	    sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
 	    if (DisplayZoom)
 		OverlayZoomText(hwnd, FinalZoomFrameNumber);
-	    if (write_jpg_file(hwnd, JPEGFilename, Dib.DibPixels, FALSE, Dib.DibWidth, Dib.DibHeight, Dib.BitsPerPixel) < 0)
+	    if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
 		return -1;
 	    FrameNumber++;
 	    }

@@ -563,6 +563,79 @@ cleanup:
     DeleteDC(hdc);
     }
 
+/**************************************************************************
+    Add shadow text to the DIB in a single GDI session
+**************************************************************************/
+
+void CDib::ShadowText2Dib(HDC hDc, RECT* rect, LOGFONT* lf, int Offset, const TCHAR* text)
+    {
+    static const int dx[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+    static const int dy[8] = { -1,-1,-1,  0, 0,  1, 1, 1 };
+
+    HDC     hdc = NULL;
+    HBITMAP hBitmap = NULL;
+    HBITMAP hOldBitmap = NULL;
+    HFONT   hFont = NULL;
+    HFONT   hOldFont = NULL;
+    RECT    r;
+
+    if ((hdc = CreateCompatibleDC(hDc)) == NULL)
+	return;
+
+    SetBkMode(hdc, TRANSPARENT);
+
+    if (lf)
+	{
+	hFont = CreateFontIndirect(lf);
+	if (hFont)
+	    hOldFont = (HFONT)SelectObject(hdc, hFont);
+	}
+
+    hBitmap = CreateCompatibleBitmap(hDc, DibWidth, DibHeight);
+    if (hBitmap == NULL)
+	goto cleanup;
+
+    hOldBitmap = (HBITMAP)SelectObject(hdc, hBitmap);
+
+    if (SetDIBits(hdc, hBitmap, 0, DibHeight, DibPixels,
+	(LPBITMAPINFO)pDibInf, DIB_RGB_COLORS) == 0)
+	goto cleanup;
+
+    // Draw black shadow in 8 directions
+    SetTextColor(hdc, RGB(0, 0, 0));
+    for (int i = 0; i < 8; i++)
+	{
+	r = *rect;
+	OffsetRect(&r, dx[i] * Offset, dy[i] * Offset);
+	DrawText(hdc, text, -1, &r, DT_LEFT | DT_WORDBREAK);
+	}
+
+    // Draw actual white text
+    SetTextColor(hdc, RGB(255, 255, 255));
+    r = *rect;
+    DrawText(hdc, text, -1, &r, DT_LEFT | DT_WORDBREAK);
+
+    if (GetDIBits(hdc, hBitmap, 0, DibHeight, DibPixels,
+	(LPBITMAPINFO)pDibInf, DIB_RGB_COLORS) == 0)
+	goto cleanup;
+
+cleanup:
+    if (hOldBitmap)
+	SelectObject(hdc, hOldBitmap);
+
+    if (hOldFont)
+	SelectObject(hdc, hOldFont);
+
+    if (hFont)
+	DeleteObject(hFont);
+
+    if (hBitmap)
+	DeleteObject(hBitmap);
+
+    if (hdc)
+	DeleteDC(hdc);
+    }
+
 //	Initialise DIB Palette (This is not a member of CDib)
 void	SetDibPalette(LPBITMAPINFO pDib, BYTE *palette)
     {
