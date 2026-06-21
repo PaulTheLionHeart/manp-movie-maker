@@ -1268,7 +1268,7 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 
 		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
 		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
-
+/*
 		if (DisplayZoom)
 		    OverlayZoomText(hwnd, FrameNumber);
 
@@ -1277,6 +1277,16 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 
 		if (i == filecount - 1 && j == NumInsertedFrames - 1)
 		    FinalDib = Dib;
+*/
+
+		if (i == filecount - 1 && j == NumInsertedFrames - 1)
+		    FinalDib = Dib;          // save clean final frame before zoom text
+
+		if (DisplayZoom)
+		    OverlayZoomText(hwnd, FrameNumber);
+
+		if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
+		    return -1;
 
 		Dib = CurrentDib;
 		FrameNumber++;
