@@ -230,7 +230,7 @@ int	StripPath(char *p)
 
 int	file_cmp(const void *p1, const void *p2)
     {
-    register int	diff, pm, width1, height1, width2, height2;
+    int			diff, pm, width1, height1, width2, height2;
     char		*a, *b;
     DWORD		size1, size2;		// compare file sizes
     FILETIME		t1, t2;			// compare save times

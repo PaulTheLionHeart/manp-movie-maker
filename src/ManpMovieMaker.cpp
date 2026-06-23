@@ -43,10 +43,10 @@ extern	int	ResizeDib(CDib *LocalDib, ResizeStruct RESIZE, BOOL InterpFlag);
 extern	int	Crop(HWND hwnd, CDib *pDib, RECT & SelectRect);
 extern	void	WINAPI	NormalizeRect(RECT &);
 
-long FAR PASCAL WndProc (HWND, UINT, UINT, LONG);
-BOOL FAR PASCAL AboutBoxDlg (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-BOOL FAR PASCAL SpecifyImageFileDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-BOOL FAR PASCAL CreateFFMPEGCommandDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK AboutBoxDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK SpecifyImageFileDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK CreateFFMPEGCommandDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 void	ChangeView(HWND hwnd, int xdest, int ydest, int widthdest, int heightdest, int xsrc, int ysrc, int widthsrc, int heightsrc, char stretchflag);
 char 	szAppName [100] = "ManpMovieMaker";
 static	HANDLE	hBitmap = NULL;					// opening bitmap
@@ -70,12 +70,8 @@ double	StartZoom;						// this is used to calculate the current zoom level for d
 double  ratio;							// ration between subsequent PNG files
 double  FrameRatio;						// ration between subsequent frames
 
-//#define min(a,b) (((a) < (b)) ? (a) : (b))
-//#define max(a,b) (((a) > (b)) ? (a) : (b))
 #define RWIDTH(rect) (rect.right - rect.left)	// IB 2009-04-14
 #define RHEIGHT(rect) (rect.bottom - rect.top)
-
-//int	type = 0;   // 0 = Pi, 1 = e, 2 = e using FFT, 3 = log 2, 4 = sqrt 2
 
 char		szFileName[MAX_PATH] = " ";
 char		Name[160];
@@ -129,7 +125,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	  {
 	  wndclass.style	 = CS_HREDRAW | CS_VREDRAW;
 //	  wndclass.style	 = CS_HREDRAW | CS_VREDRAW | CS_SAVEBITS;
-	  wndclass.lpfnWndProc	 = (WNDPROC)WndProc;
+	  wndclass.lpfnWndProc	 = WndProc;
 	  wndclass.cbClsExtra	 = 0;
 	  wndclass.cbWndExtra	 = 0;
 	  wndclass.hInstance	 = hInstance;
@@ -199,7 +195,7 @@ void	DrawBitmap(HWND hwnd, HDC hdc, HANDLE hBitmap)
 	Let's Process a few messages
   -----------------------------------------*/
 
-long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
+LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
     static HINSTANCE	hInst;
     static HCURSOR	hCursor;
@@ -252,19 +248,19 @@ long FAR PASCAL WndProc (HWND hwnd, UINT message, UINT wParam, LONG lParam)
 			return 0;
 
 		    case IDM_SETUPFILEINFO:
-			if (DialogBox (hInst, "SpecifyImageFileDlg", hwnd, (DLGPROC)SpecifyImageFileDlg) != IDOK)
+			if (DialogBox (hInst, "SpecifyImageFileDlg", hwnd, SpecifyImageFileDlg) != IDOK)
 			    return 0;
 			else
 			    GenerateFileSequence(hwnd, Filename, NumInsertedFrames);
 			return 0;
 
 		    case IDM_FFMPEG:
-			DialogBox(hInst, "CreateFFMPEGCommandDlg", hwnd, (DLGPROC)CreateFFMPEGCommandDlg);
+			DialogBox(hInst, "CreateFFMPEGCommandDlg", hwnd, CreateFFMPEGCommandDlg);
 			return 0;
 
 			// Messages from Help menu
 		    case IDM_ABOUT:
-			 DialogBox (hInst, "AboutBoxDlg", hwnd, (DLGPROC)AboutBoxDlg);
+			 DialogBox (hInst, "AboutBoxDlg", hwnd, AboutBoxDlg);
 			 return 0;
 		    }
 	       break;
@@ -374,7 +370,7 @@ void  UpdateMovieMakerEstimates(HWND hDlg)
 	Image files
 **************************************************************************/
 
-BOOL FAR PASCAL SpecifyImageFileDlg (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK SpecifyImageFileDlg (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
      {
      BOOL		bTrans;
      char		*ptr;
@@ -622,7 +618,7 @@ void UpdateFFmpegCommand(HWND hDlg)
 // This is intentionally approximate and sufficient for
 // display overlays.
 
-BOOL FAR PASCAL CreateFFMPEGCommandDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK CreateFFMPEGCommandDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     {
     OPENFILENAME	ofn{};
     HWND		hCtrl;
@@ -716,7 +712,7 @@ BOOL FAR PASCAL CreateFFMPEGCommandDlg(HWND hDlg, UINT message, WPARAM wParam, L
 	About Constant Dialog Box
 **************************************************************************/
 
-BOOL FAR PASCAL AboutBoxDlg (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK AboutBoxDlg (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
      {
      switch (message)
 	  {
@@ -939,30 +935,6 @@ int DeleteExistingFrames(HWND hwnd, const char *OutputPath)
     FindClose(hFind);
     return 0;
     }
-
-/**************************************************************************
-	Add shadow text to a frame
-**************************************************************************/
-
-/*
-void ShadowText2Dib(HDC hDC, RECT *rect, LOGFONT *lf, int Offset, TCHAR *text)
-    {
-    static const int dx[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
-    static const int dy[8] = { -1,-1,-1,  0, 0,  1, 1, 1 };
-
-    RECT r;
-
-    for (int i = 0; i < 8; i++)		// shadow in 8 directions
-	{
-	r = *rect;
-	OffsetRect(&r, dx[i] * Offset, dy[i] * Offset);
-	Dib.Text2Dib(hDC, &r, RGB(0, 0, 0), RGB(0, 0, 0), lf, TRANSPARENT, text);
-	}
-
-    // actual white text
-    Dib.Text2Dib(hDC, rect, RGB(255, 255, 255), RGB(0, 0, 0), lf, TRANSPARENT, text);
-    }
-*/
 
 /**************************************************************************
 	Add text to a frame
@@ -1268,16 +1240,6 @@ int	GenerateFileSequence(HWND hwnd, char *Filename, int NumInsertedFrames)
 
 		ShowStatus(hwnd, "Creating Frame %d of %d", FrameNumber + 1, TotalFrames);
 		sprintf(JPEGFilename, "%s\\Frame%05d.jpg", OutputPath, FrameNumber);
-/*
-		if (DisplayZoom)
-		    OverlayZoomText(hwnd, FrameNumber);
-
-		if (write_jpg_file(hwnd, JPEGFilename, &Dib, FALSE) < 0)
-		    return -1;
-
-		if (i == filecount - 1 && j == NumInsertedFrames - 1)
-		    FinalDib = Dib;
-*/
 
 		if (i == filecount - 1 && j == NumInsertedFrames - 1)
 		    FinalDib = Dib;          // save clean final frame before zoom text
