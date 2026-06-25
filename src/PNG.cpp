@@ -33,13 +33,10 @@
 
 int	png_decoder(HWND, char *, char *);
 int	decode_png_header(HWND, char *, char *);
-//int	load_png_palette(HWND, char *, char *);
 
 typedef unsigned long   ULONG;
 
 extern	long	threshold;
-
-//extern	CTrueCol    TrueCol;			// palette info
 
 static	char	PNG_error_buffer[240];
 static	HWND	temphwnd;
@@ -55,9 +52,6 @@ extern	int	height, xdots, ydots, width, bits_per_pixel;
 extern	BYTE	*GetOrthoPalette(BYTE *);
 extern	void	SwapColours(WORD);
 
-//extern	CDib	Dib;				// Device Independent Bitmap
-extern	"C"	png_text	TextData[];
-
 static	png_structp	read_ptr;
 static	png_infop	read_info_ptr, end_info_ptr;
 static	png_structp	write_ptr = NULL;
@@ -68,8 +62,6 @@ static	int		bit_depth, color_type;
 static	jmp_buf		jmpbuf;
 static	png_textp	text_ptr;
 
-//static	png_structp	png_ptr;
-//static	png_info	*info_ptr;
 static	FILE		*fp = NULL;;
 int			DataFromPNGFile = FALSE;	// loaded PNG file?
 
@@ -331,11 +323,20 @@ int	decode_png_header(HWND hwnd, char *infile, char *szAppName)
     if (png_get_IHDR(read_ptr, read_info_ptr, (png_uint_32 *)&width, (png_uint_32 *)&height, &bit_depth, &color_type, &interlace_type, &compression_type, &filter_type))
 	    png_set_IHDR(write_ptr, write_info_ptr, width, height, bit_depth, color_type, interlace_type, compression_type, filter_type);
 
-    width = (WORD)(read_ptr->width);				// with of file
-    height = (WORD)(read_ptr->height);				// height of file
-    bits_per_pixel = (WORD)(read_ptr->pixel_depth);		// number of bits per pixel
-//    png_get_PLTE(read_ptr, read_info_ptr, &palette, &num_palette);
-//    memcpy(TrueCol.PalettePtr, read_ptr->palette, RGB_SIZE * read_ptr->num_palette);	// read palette
+    png_uint_32 png_width = 0;
+    png_uint_32 png_height = 0;
+
+    png_width = png_get_image_width(read_ptr, read_info_ptr);
+    png_height = png_get_image_height(read_ptr, read_info_ptr);
+
+    width = (WORD)png_width;        // width of file
+    height = (WORD)png_height;      // height of file
+    bits_per_pixel = (WORD)png_get_bit_depth(read_ptr, read_info_ptr);
+
+    if (png_get_color_type(read_ptr, read_info_ptr) == PNG_COLOR_TYPE_RGB)
+	bits_per_pixel = 24;
+    else if (png_get_color_type(read_ptr, read_info_ptr) == PNG_COLOR_TYPE_RGB_ALPHA)
+	bits_per_pixel = 32;
     return 0;
     }
 
@@ -389,6 +390,38 @@ int   png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool 
 
    // read the rest of the file, getting any additional chunks in info_ptr 
     png_read_end(read_ptr, read_info_ptr);
+
+    if (png_get_text(read_ptr, read_info_ptr, &text_ptr, &num_text) > 0)
+	{
+	for (i = 0; i < (WORD)num_text; i++)
+	    {
+	    if (strncmp(text_ptr[i].key, "Comment", 7) == 0)
+		{
+		if (text_ptr[i].text_length > 0)
+		    {
+		    //		    setup_defaults();
+		    //		    GetParamData(hwnd, infile, text_ptr[i].text, "", TRUE);
+		    if (UseComment)
+			GetParamData(hwnd, infile, text_ptr[i].text, Zoom);
+		    }
+		else
+		    *Zoom = -1.0;
+		}
+	    // do we really need to store this?
+	    //	    if (strncmp(text_ptr[i].key, "Pixels", 6) == 0)
+	    //		{
+	    //		if (text_ptr[i].text_length > (size_t)(width * height))			// yep, we have pixels
+	    //		    LoadIterationsDatabase(text_ptr[i].text, (int)text_ptr[i].text_length);
+	    //		}
+	    if (strncmp(text_ptr[i].key, "Palette", 7) == 0)
+		{
+		//		if (text_ptr[i].text_length > 16)		// yep, we have a palette override palette in file if this is found
+		//		    LoadTextPalette(text_ptr[i].text, (int)text_ptr[i].text_length);
+		}
+	    }
+	}
+
+    /*
     if (png_get_text(read_ptr, read_info_ptr, &text_ptr, &num_text) > 0)
 	{
 	for (i = 0; i < (WORD)num_text; i++)
@@ -418,6 +451,9 @@ int   png_decoder(HWND hwnd, char *szAppName, char *infile, double  *Zoom, bool 
 		}
 	    }
 	}
+	*/
+
+
 
    // clean up after the read, and free any memory allocated 
     png_destroy_read_struct(&read_ptr, &read_info_ptr, &end_info_ptr);

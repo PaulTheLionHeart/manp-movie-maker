@@ -39,9 +39,12 @@ set(MANPMOVIEMAKER_SOURCES
 # Third-party libraries
 # ---------------------------------------------------------
 
+# Keep local JPEG library for now
 add_subdirectory(jpeglib)
-add_subdirectory(zlib)
-add_subdirectory(pnglib)
+
+# Use vcpkg for zlib + libpng
+find_package(ZLIB REQUIRED)
+find_package(PNG REQUIRED)
 
 # ---------------------------------------------------------
 # Main executable
@@ -61,22 +64,24 @@ target_include_directories(ManpMovieMaker PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/jpeglib
-    ${CMAKE_SOURCE_DIR}/pnglib
-    ${CMAKE_SOURCE_DIR}/zlib
 )
 
 # ---------------------------------------------------------
-# Force the executable to depend on the library targets
-# so they build first
+# Force the executable to depend on the local JPEG library
+# so it builds first
 # ---------------------------------------------------------
 
-add_dependencies(ManpMovieMaker jpeglib zlib pnglib)
+add_dependencies(ManpMovieMaker jpeglib)
 
 # ---------------------------------------------------------
 # Link system libraries only in the normal way
 # ---------------------------------------------------------
 
+
 target_link_libraries(ManpMovieMaker PRIVATE
+    PNG::PNG
+    ZLIB::ZLIB
+
     comctl32
     comdlg32
     shell32
@@ -90,21 +95,15 @@ target_link_libraries(ManpMovieMaker PRIVATE
 )
 
 # ---------------------------------------------------------
-# Link the three MMM libraries explicitly by file path,
-# matching the old VC++ project style as closely as possible.
+# Link the local JPEG library explicitly for now.
+# PNG and ZLIB now come from vcpkg via target_link_libraries().
 # ---------------------------------------------------------
 
 target_link_options(ManpMovieMaker PRIVATE
     $<$<CONFIG:Debug>:
-        "${CMAKE_BINARY_DIR}/pnglib/Debug/PNGLib.lib"
-        "${CMAKE_BINARY_DIR}/zlib/Debug/ZLib.lib"
         "${CMAKE_BINARY_DIR}/jpeglib/Debug/JPEGLIB.lib"
-        /NODEFAULTLIB:LIBCMT.lib
-        /NODEFAULTLIB:MSVCRTD.lib
     >
     $<$<CONFIG:Release>:
-        "${CMAKE_BINARY_DIR}/pnglib/Release/PNGLib.lib"
-        "${CMAKE_BINARY_DIR}/zlib/Release/ZLib.lib"
         "${CMAKE_BINARY_DIR}/jpeglib/Release/JPEGLIB.lib"
     >
 )

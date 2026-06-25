@@ -1,6 +1,28 @@
 # CMake Build Notes
 
-## 2.0d – CMake build support and Win32 callback modernisation (23/06/2026)
+## 2026-06-25 — Manp Movie Maker 2.0d CMake/vcpkg update
+
+This update modernises the MMM CMake build and reduces dependence on legacy local library projects.
+
+### Build system changes
+
+* Added `vcpkg.json` manifest for external dependencies.
+* Switched the CMake build to use **vcpkg static** versions of **zlib** and **libpng** (`x64-windows-static`).
+* Retained the local **jpeglib** project for now.
+* CMake Release build now produces a single self-contained executable without separate `libpng`/`zlib` DLLs.
+
+### PNG compatibility fixes
+
+* Replaced the old custom `TextData[]` comment-loading mechanism with standard libpng text handling via `png_get_text()`.
+* Replaced direct reads of internal libpng structure fields (`read_ptr->width`, `read_ptr->height`, `read_ptr->pixel_depth`) with proper libpng API calls.
+* This fixed an image-loading failure seen when using stock/vcpkg libpng, where some PNGs were being interpreted as 1-pixel-wide images in the CMake build.
+
+### Result
+
+* MMM 2.0d now builds cleanly with CMake + vcpkg static libraries.
+* PNG comment/zoom metadata loading continues to work correctly with the standard libpng API.
+
+## CMake build support and Win32 callback modernisation (23/06/2026)
 
 This note records the work needed to get **ManpMovieMaker** building and running correctly using the new **CMake** build system.
 
