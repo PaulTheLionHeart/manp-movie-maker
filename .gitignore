@@ -8,6 +8,7 @@ Release/
 build/
 build_debug/
 build_release/
+build-cmake/
 out/
 bin/
 obj/
