@@ -34,7 +34,7 @@ The result is a practical workflow that combines the rendering power of ManpWIN 
 
 Current capabilities include:
 
-* Generate JPG animation frames from PNG image sequences.
+* Generate JPG animation frames from carefully prepared PNG image sequences.
 * Create smooth zoom animations.
 * Create smooth morphing animations between rendered images.
 * Insert intermediate frames between source images.
@@ -49,10 +49,21 @@ Current capabilities include:
 
 # Typical Workflow
 
-1. Create a sequence of PNG images.
+1. Create a sequence of PNG images. Ensure the source directory contains only the PNG images belonging to the current animation. All source images should have identical dimensions.
 2. Generate animation JPG frames using ManpMovieMaker.
 3. Create an FFmpeg movie-production script.
 4. Produce a high-quality MP4 movie.
+
+---
+
+## Good Practice
+
+For reliable movie generation:
+
+* Keep each animation in its own directory.
+* Ensure the source directory contains only the PNG images for the current animation.
+* Avoid mixing PNG images with different dimensions.
+* Review the generated JPG frames before creating the final movie.
 
 ---
 
@@ -70,6 +81,7 @@ Detailed documentation is available in the docs directory.
 
 ### User Guides
 
+- [Preparing Source Images](docs/PrepareSourceImages.md)
 - [Prepare JPG Frames](docs/PrepareFrames.md)
 - [Create FFmpeg Script](docs/CreateFFmpegScript.md)
 - [FFmpeg Installation](docs/FFmpegInstallation.md)
